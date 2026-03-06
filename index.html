@@ -1666,7 +1666,7 @@
         const upiId = "bholanathk460@okhdfcbank";
         const payeeName = "ProgramPros";
         const transactionNote = "Upgrade to " + planName;
-        const upiUrl = \`upi://pay?pa=\${upiId}&pn=\${encodeURIComponent(payeeName)}&am=\${amount}&cu=INR&tn=\${encodeURIComponent(transactionNote)}\`;
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
         showToast('Opening payment app...', 'info');
 
