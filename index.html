@@ -77,6 +77,10 @@
         .confetti-piece { position: absolute; z-index: 9999; pointer-events: none; animation: fall linear forwards; }
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
         
+        /* Terminal Cursor */
+        .cursor-blink { animation: blink 1s step-end infinite; font-weight: bold; }
+        @keyframes blink { 50% { opacity: 0; } }
+
         /* Pro Upgrade Card (From Uiverse.io) */
         .pro-card {
             --white: hsl(0, 0%, 100%);
@@ -171,7 +175,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, signOut, RecaptchaVerifier, linkWithPhoneNumber, signInWithPhoneNumber, EmailAuthProvider, linkWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, signOut, RecaptchaVerifier, linkWithPhoneNumber, signInWithPhoneNumber, EmailAuthProvider, linkWithCredential, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
@@ -220,7 +224,8 @@
         signupType: 'email', // 'email' or 'phone'
         currentCourseId: null,
         currentLessonId: null,
-        authReady: false
+        authReady: false,
+        isPostModalOpen: false // Controls community new post modal
     };
 
     window.MockData = {
@@ -296,7 +301,9 @@
         AppState.currentPage = page;
         if (params.courseId) AppState.currentCourseId = params.courseId;
         
-        // Reset auth mode defaults when navigating to auth pages
+        // Reset modals and auth states securely when changing screens
+        AppState.isPostModalOpen = false;
+        
         if (page === 'login') {
             AppState.authMode = 'email';
         }
@@ -346,6 +353,25 @@
     }
 
     // --- AUTHENTICATION LOGIC ---
+    window.handleGoogleLogin = async function(event) {
+        const btn = event.currentTarget;
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i>';
+        btn.disabled = true;
+
+        try {
+            const provider = new GoogleAuthProvider();
+            await signInWithPopup(auth, provider);
+            showToast('Logged in with Google successfully!', 'success');
+            // onAuthStateChanged will handle the redirect
+        } catch (error) {
+            console.error("Google Auth Error:", error);
+            showToast(error.message.replace('Firebase: ', ''), 'error');
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+
     window.handleSignup = async function(event) {
         const name = $('signup-name').value;
         const email = $('signup-email').value;
@@ -572,6 +598,43 @@
         }
     }
 
+    // --- COMMUNITY POST LOGIC ---
+    window.togglePostModal = function() {
+        AppState.isPostModalOpen = !AppState.isPostModalOpen;
+        renderApp();
+    }
+
+    window.submitNewPost = async function() {
+        const text = $('new-post-text').value.trim();
+        if(!text) return showToast('Post cannot be empty', 'error');
+        
+        $('btn-submit-post').innerHTML = '<i class="ph ph-spinner animate-spin"></i> Posting...';
+        $('btn-submit-post').disabled = true;
+
+        const newPost = {
+            user: AppState.user.name,
+            avatar: AppState.user.avatar,
+            time: Date.now(),
+            text: text
+        };
+
+        try {
+            if(db) {
+                const forumRef = collection(db, 'artifacts', appId, 'public', 'data', 'forum_posts');
+                await addDoc(forumRef, newPost);
+            } else {
+                AppState.forumPosts.unshift(newPost); // Offline fallback
+            }
+            showToast('Posted successfully!', 'success');
+            AppState.isPostModalOpen = false;
+            renderApp();
+        } catch(e) {
+            showToast('Failed to post', 'error');
+            $('btn-submit-post').innerHTML = 'Post';
+            $('btn-submit-post').disabled = false;
+        }
+    }
+
     // --- PHONE VERIFICATION LOGIC (SETTINGS PAGE) ---
     window.sendPhoneOTP = async function() {
         const phone = $('phone-input').value.trim();
@@ -630,7 +693,7 @@
                 name: firebaseUser.displayName || 'Student ' + uid.substring(0, 4).toUpperCase(),
                 email: firebaseUser.email || 'student@example.com',
                 phone: firebaseUser.phoneNumber || '',
-                avatar: 'https://ui-avatars.com/api/?name=' + (firebaseUser.displayName || 'Student') + '&background=random',
+                avatar: firebaseUser.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(firebaseUser.displayName || 'Student') + '&background=random'),
                 studentId: 'PP-' + Math.floor(Math.random() * 90000 + 10000),
                 joinDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
                 level: 1,
@@ -816,7 +879,7 @@
                     <span class="relative bg-white dark:bg-dark px-4 text-sm text-gray-500">Or continue with</span>
                 </div>
                 
-                <button onclick="mockLogin()" class="w-full py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-medium flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-gray-100 dark:hover:bg-gray-700">
+                <button onclick="handleGoogleLogin(event)" class="w-full py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-medium flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-gray-100 dark:hover:bg-gray-700">
                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-6 h-6" alt="Google">
                     <span>Google</span>
                 </button>
@@ -831,6 +894,20 @@
 
     function renderSignup() {
         const step = AppState.signupStep || 1;
+        const isEmail = AppState.authMode === 'email';
+
+        // Stepper Visual UI
+        const stepperHtml = `
+            <div class="flex items-center justify-center mb-8 w-full px-4">
+                <div class="flex items-center text-sm">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= 1 ? 'bg-primary text-white shadow-md' : 'bg-gray-200 text-gray-500'} transition-all">1</div>
+                    <div class="w-8 md:w-12 h-1 ${step >= 2 ? 'bg-primary' : 'bg-gray-200'} mx-2 rounded transition-all"></div>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= 2 ? 'bg-primary text-white shadow-md' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'} transition-all">2</div>
+                    <div class="w-8 md:w-12 h-1 ${step >= 3 ? 'bg-primary' : 'bg-gray-200'} mx-2 rounded transition-all"></div>
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= 3 ? 'bg-primary text-white shadow-md' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'} transition-all">3</div>
+                </div>
+            </div>
+        `;
 
         let contentHtml = '';
         
@@ -850,7 +927,7 @@
                     <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200 dark:border-gray-700"></div></div>
                     <span class="relative bg-white dark:bg-dark px-4 text-sm text-gray-500">Or continue with</span>
                 </div>
-                <button onclick="mockLogin()" class="w-full py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-medium flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-gray-100 dark:hover:bg-gray-700 mb-4">
+                <button onclick="handleGoogleLogin(event)" class="w-full py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-medium flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-gray-100 dark:hover:bg-gray-700 mb-4">
                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-6 h-6" alt="Google">
                     <span>Google</span>
                 </button>
@@ -894,9 +971,10 @@
         return `
         <div class="h-full flex flex-col p-6 animate-fade-in bg-white dark:bg-dark items-center">
             <div class="w-full max-w-md flex flex-col h-full">
-                <button onclick="navigate('welcome')" class="self-start p-2 -ml-2 text-gray-500 dark:text-gray-400 mb-6 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-2xl"></i></button>
-                <h1 class="text-3xl font-bold mb-2">Create Account</h1>
+                <button onclick="navigate('welcome')" class="self-start p-2 -ml-2 text-gray-500 dark:text-gray-400 mb-4 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-2xl"></i></button>
+                <h1 class="text-3xl font-bold mb-6 text-center">Create Account</h1>
                 
+                ${stepperHtml}
                 ${contentHtml}
                 
                 ${step === 1 ? `
@@ -1185,9 +1263,12 @@
                     <i class="ph-fill ph-file-js text-yellow-400 text-lg"></i>
                     <span class="text-sm font-medium tracking-wide">JavaScript</span>
                 </div>
-                <button id="run-btn" onclick="runCode()" class="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-lg shadow-green-500/20 active:scale-95 transition-all">
-                    <i class="ph-fill ph-play text-lg"></i> Run
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="$('code-editor-textarea').value=''" class="text-gray-400 hover:text-white p-2 hover:bg-gray-800 rounded transition-colors" title="Reset Code"><i class="ph ph-arrow-counter-clockwise text-xl"></i></button>
+                    <button id="run-btn" onclick="runCode()" class="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-lg shadow-green-500/20 active:scale-95 transition-all">
+                        <i class="ph-fill ph-play text-lg"></i> Run
+                    </button>
+                </div>
             </div>
 
             <!-- Code Editor & Output Layout -->
@@ -1214,10 +1295,10 @@
                 <div class="h-1/3 md:h-full md:w-1/3 lg:w-1/4 bg-[#0d1117] flex flex-col shrink-0 border-t md:border-t-0 md:border-l border-gray-800">
                     <div class="px-4 py-3 border-b border-gray-800 flex justify-between items-center bg-gray-900/50">
                         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Console Output</span>
-                        <button onclick="$('console-output').innerHTML='<span class=\\'text-gray-600 italic\\'>Output cleared...</span>'" class="text-gray-500 hover:text-white p-1 hover:bg-gray-800 rounded transition-colors"><i class="ph ph-trash"></i></button>
+                        <button onclick="$('console-output').innerHTML='<span class=\\'text-gray-600 italic\\'>Output cleared...</span><span class=\\'cursor-blink text-gray-400 ml-1\\'>_</span>'" class="text-gray-500 hover:text-white p-1 hover:bg-gray-800 rounded transition-colors"><i class="ph ph-trash"></i></button>
                     </div>
                     <div class="flex-1 p-4 overflow-y-auto font-mono text-sm" id="console-output">
-                        <span class="text-gray-600 italic">Output will appear here...</span>
+                        <span class="text-gray-600 italic">Ready for execution...</span><span class="cursor-blink text-gray-400 ml-1">_</span>
                     </div>
                 </div>
 
@@ -1270,12 +1351,12 @@
                 // Evaluates the JS code
                 eval(code);
                 if (logs.length > 0) {
-                    out.innerHTML = logs.map(l => `<div class="text-green-400">> ${l}</div>`).join('');
+                    out.innerHTML = logs.map(l => `<div class="text-green-400">> ${l}</div>`).join('') + '<span class="cursor-blink text-gray-400 ml-1">_</span>';
                 } else {
-                    out.innerHTML = `<div class="text-gray-400 italic">Code executed successfully (No output)</div>`;
+                    out.innerHTML = `<div class="text-gray-400 italic">Code executed successfully (No output)</div><span class="cursor-blink text-gray-400 ml-1">_</span>`;
                 }
             } catch (error) {
-                out.innerHTML = `<div class="text-red-500 font-bold">> Error: ${error.message}</div>`;
+                out.innerHTML = `<div class="text-red-500 font-bold">> Error: ${error.message}</div><span class="cursor-blink text-gray-400 ml-1">_</span>`;
             } finally {
                 console.log = originalLog; // Restore normal console.log
             }
@@ -1397,7 +1478,27 @@
             </div>
 
             <!-- Floating Action Button -->
-            <button class="fixed bottom-24 right-6 md:bottom-10 md:right-10 w-14 h-14 md:w-16 md:h-16 gradient-bg text-white rounded-full shadow-lg shadow-primary/40 flex items-center justify-center text-2xl hover:scale-105 active:scale-90 transition-all z-20"><i class="ph ph-pencil-simple"></i></button>
+            <button onclick="togglePostModal()" class="fixed bottom-24 right-6 md:bottom-10 md:right-10 w-14 h-14 md:w-16 md:h-16 gradient-bg text-white rounded-full shadow-lg shadow-primary/40 flex items-center justify-center text-2xl hover:scale-105 active:scale-90 transition-all z-20"><i class="ph ph-pencil-simple"></i></button>
+            
+            <!-- New Post Modal Overlay -->
+            ${AppState.isPostModalOpen ? `
+            <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end md:items-center justify-center animate-fade-in p-4 md:p-0">
+                <div class="bg-white dark:bg-darkCard w-full max-w-lg rounded-3xl p-6 shadow-2xl animate-slide-up relative">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Create a Post</h2>
+                        <button onclick="togglePostModal()" class="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><i class="ph ph-x text-xl"></i></button>
+                    </div>
+                    <div class="flex gap-3 mb-4">
+                        <img src="${AppState.user.avatar}" class="w-10 h-10 rounded-full object-cover">
+                        <textarea id="new-post-text" placeholder="What's on your mind, ${AppState.user.name.split(' ')[0]}?" class="flex-1 bg-transparent border-none outline-none resize-none h-24 text-gray-900 dark:text-white placeholder-gray-400 mt-2" autofocus></textarea>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+                        <button onclick="togglePostModal()" class="px-5 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Cancel</button>
+                        <button id="btn-submit-post" onclick="submitNewPost()" class="px-6 py-2.5 rounded-xl font-bold gradient-bg text-white shadow-lg active:scale-95 transition-all">Post</button>
+                    </div>
+                </div>
+            </div>` : ''}
+
         </div>
         `;
     }
@@ -1611,22 +1712,22 @@
                 <section>
                     <h3 class="text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 md:mb-4 ml-2">App Preferences</h3>
                     <div class="bg-white dark:bg-darkCard rounded-2xl md:rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-                        <div class="p-4 md:p-5 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <div class="p-4 md:p-5 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onclick="toggleTheme()">
                             <div class="flex items-center gap-3 md:gap-4">
                                 <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"><i class="ph ph-moon text-gray-600 dark:text-gray-300 md:text-xl"></i></div>
                                 <span class="font-medium md:text-lg">Dark Mode</span>
                             </div>
-                            <div class="w-12 h-6 md:w-14 md:h-7 bg-gray-200 dark:bg-primary rounded-full relative cursor-pointer" onclick="toggleTheme()">
-                                <div class="w-5 h-5 md:w-6 md:h-6 bg-white rounded-full absolute top-0.5 md:top-[2px] transition-all ${isDark ? 'right-0.5 md:right-[2px]' : 'left-0.5 md:left-[2px]'} shadow-sm"></div>
+                            <div class="w-12 h-6 md:w-14 md:h-7 bg-gray-200 dark:bg-gray-700 rounded-full relative transition-colors ${isDark ? 'bg-primary dark:bg-primary' : ''}">
+                                <div class="w-5 h-5 md:w-6 md:h-6 bg-white rounded-full absolute top-0.5 md:top-[2px] left-0.5 md:left-[2px] shadow-sm transform transition-transform duration-300 ${isDark ? 'translate-x-6 md:translate-x-7' : 'translate-x-0'}"></div>
                             </div>
                         </div>
-                        <div class="p-4 md:p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <div class="p-4 md:p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
                             <div class="flex items-center gap-3 md:gap-4">
                                 <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"><i class="ph ph-bell text-gray-600 dark:text-gray-300 md:text-xl"></i></div>
                                 <span class="font-medium md:text-lg">Notifications</span>
                             </div>
-                            <div class="w-12 h-6 md:w-14 md:h-7 bg-primary rounded-full relative cursor-pointer">
-                                <div class="w-5 h-5 md:w-6 md:h-6 bg-white rounded-full absolute top-0.5 md:top-[2px] right-0.5 md:right-[2px] shadow-sm"></div>
+                            <div class="w-12 h-6 md:w-14 md:h-7 bg-primary rounded-full relative transition-colors">
+                                <div class="w-5 h-5 md:w-6 md:h-6 bg-white rounded-full absolute top-0.5 md:top-[2px] left-0.5 md:left-[2px] shadow-sm transform transition-transform duration-300 translate-x-6 md:translate-x-7"></div>
                             </div>
                         </div>
                     </div>
