@@ -231,7 +231,7 @@
     window.MockData = {
         courses: [
             { 
-                id: 'c1', title: 'Python for Beginners', icon: 'ph-file-py', color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30', progress: 45, lessons: 12,
+                id: 'c1', title: 'Python for Beginners', icon: 'ph-file-py', color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30', progress: 45, lessons: 12, price: 299,
                 syllabus: [
                     { id: 'l1', title: 'Introduction to Python', type: 'video', duration: '10 mins', isPremium: false, url: 'https://www.youtube.com/embed/kqtD5dpn9C8' },
                     { id: 'l2', title: 'Variables & Data Types', type: 'note', duration: '5 mins', isPremium: false, content: '<p>Variables are containers for storing data values. In Python, a variable is created the moment you first assign a value to it.</p><pre class="bg-gray-800 text-white p-3 rounded mt-2">x = 5\ny = "Hello, World!"</pre>' },
@@ -240,9 +240,15 @@
                     { id: 'l5', title: 'Module 1 Assessment', type: 'quiz', duration: '10 Qs', isPremium: true }
                 ]
             },
-            { id: 'c2', title: 'JavaScript Mastery', icon: 'ph-file-js', color: 'text-yellow-500', bg: 'bg-yellow-100 dark:bg-yellow-900/30', progress: 10, lessons: 20, syllabus: [] },
-            { id: 'c3', title: 'HTML & CSS UI Design', icon: 'ph-file-html', color: 'text-orange-500', bg: 'bg-orange-100 dark:bg-orange-900/30', progress: 100, lessons: 8, syllabus: [] },
-            { id: 'c4', title: 'C++ Data Structures', icon: 'ph-file-c', color: 'text-indigo-500', bg: 'bg-indigo-100 dark:bg-indigo-900/30', progress: 0, lessons: 15, syllabus: [] }
+            { id: 'c2', title: 'JavaScript Mastery', icon: 'ph-file-js', color: 'text-yellow-500', bg: 'bg-yellow-100 dark:bg-yellow-900/30', progress: 10, lessons: 20, price: 349, syllabus: [
+                { id: 'l21', title: 'JS Basics', type: 'video', duration: '15 mins', isPremium: false, url: '' },
+                { id: 'l22', title: 'React Integration', type: 'video', duration: '30 mins', isPremium: true, url: '' }
+            ] },
+            { id: 'c3', title: 'HTML & CSS UI Design', icon: 'ph-file-html', color: 'text-orange-500', bg: 'bg-orange-100 dark:bg-orange-900/30', progress: 100, lessons: 8, price: 199, syllabus: [
+                { id: 'l31', title: 'HTML5 Semantics', type: 'note', duration: '5 mins', isPremium: false, content: 'HTML5 introduces structural tags...' },
+                { id: 'l32', title: 'CSS Flexbox & Grid', type: 'video', duration: '40 mins', isPremium: true, url: '' }
+            ] },
+            { id: 'c4', title: 'C++ Data Structures', icon: 'ph-file-c', color: 'text-indigo-500', bg: 'bg-indigo-100 dark:bg-indigo-900/30', progress: 0, lessons: 15, price: 499, syllabus: [] }
         ],
         challenges: [
             { id: 1, title: 'Reverse a String', level: 'Easy', pts: 10, completed: true },
@@ -253,15 +259,6 @@
             { icon: 'ph-fire', title: '7 Day Streak', desc: 'Learned for 7 days straight', earned: true },
             { icon: 'ph-medal', title: 'JS Beginner', desc: 'Completed 5 JS lessons', earned: true },
             { icon: 'ph-trophy', title: 'Challenge Master', desc: 'Solve 10 Hard challenges', earned: false }
-        ],
-        plans: [
-            {
-                id: 'pro_lifetime',
-                title: 'ProgramPros PRO',
-                price: 499,
-                desc: 'Unlock all premium courses, advanced challenges, and priority support.',
-                features: ['All Premium Courses', 'Unlimited Code Execution', 'Priority Forum Support', 'Verified Pro Badge', 'Downloadable Source Codes']
-            }
         ]
     };
 
@@ -372,7 +369,7 @@
                 joinDate: 'Jan 2026',
                 level: 12,
                 points: 1450,
-                isPro: false
+                unlockedCourses: [] // Replaces isPro flag
             };
             navigate('dashboard'); 
         }, 800);
@@ -690,7 +687,7 @@
                 joinDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
                 level: 1,
                 points: 0,
-                isPro: false
+                unlockedCourses: [] // Array of course IDs they've bought
             });
         } else if (firebaseUser.phoneNumber && !userSnap.data().phone) {
             // If phone was linked, update document
@@ -701,8 +698,11 @@
         onSnapshot(userRef, (doc) => {
             if (doc.exists()) {
                 AppState.user = { uid, ...doc.data() };
+                // Ensure unlockedCourses exists safely
+                if (!AppState.user.unlockedCourses) AppState.user.unlockedCourses = [];
+                
                 if (['dashboard', 'profile', 'community', 'courses', 'challenges'].includes(AppState.currentPage)) {
-                    renderApp(); // Re-render to show updated points/pro status
+                    renderApp(); // Re-render to show updated points/access
                 }
             }
         }, (error) => console.error("Error listening to profile:", error));
@@ -989,10 +989,10 @@
         <div class="pb-24 md:pb-8 animate-fade-in max-w-7xl mx-auto">
             <!-- Header -->
             <div class="gradient-bg rounded-b-[40px] md:rounded-b-[60px] p-6 pt-8 md:p-10 md:pt-12 text-white shadow-lg relative overflow-hidden">
-                ${AppState.user.isPro ? '<div class="absolute top-0 right-0 p-4 opacity-20 pointer-events-none"><i class="ph-fill ph-crown text-8xl md:text-9xl"></i></div>' : ''}
+                <div class="absolute top-0 right-0 p-4 opacity-20 pointer-events-none"><i class="ph-fill ph-code text-8xl md:text-9xl"></i></div>
                 <div class="flex justify-between items-center mb-6 relative z-10 max-w-4xl mx-auto">
                     <div>
-                        <p class="text-blue-100 text-sm md:text-base flex items-center gap-2">Welcome back, ${AppState.user.isPro ? '<span class="bg-yellow-400 text-yellow-900 text-[10px] md:text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">PRO</span>' : ''}</p>
+                        <p class="text-blue-100 text-sm md:text-base flex items-center gap-2">Welcome back,</p>
                         <h1 class="text-2xl md:text-4xl font-bold">${AppState.user.name} 👋</h1>
                     </div>
                     <div class="flex gap-3">
@@ -1131,19 +1131,22 @@
         const courseId = AppState.currentCourseId || 'c1';
         const course = MockData.courses.find(c => c.id === courseId) || MockData.courses[0];
         
+        // Safely check if the user has purchased this course
+        const isUnlocked = AppState.user?.unlockedCourses?.includes(courseId);
+        
         let syllabusHtml = (course.syllabus || []).map((item, index) => {
-            const isLocked = item.isPremium && (!AppState.user || !AppState.user.isPro);
+            const isLocked = item.isPremium && !isUnlocked;
             const icon = item.type === 'video' ? 'ph-play-circle' : item.type === 'pdf' ? 'ph-file-pdf' : item.type === 'quiz' ? 'ph-exam' : 'ph-article';
             
             return `
-            <div onclick="${isLocked ? "navigate('upgrade')" : `Maps('lesson', {lessonId: '${item.id}'})`}" class="bg-white dark:bg-darkCard p-4 md:p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md hover:-translate-y-1 active:scale-95 transition-all ${isLocked ? 'opacity-70' : ''}">
+            <div onclick="${isLocked ? "navigate('upgrade', {courseId: '" + course.id + "'})" : `Maps('lesson', {lessonId: '${item.id}'})`}" class="bg-white dark:bg-darkCard p-4 md:p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md hover:-translate-y-1 active:scale-95 transition-all ${isLocked ? 'opacity-70' : ''}">
                 <div class="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full ${isLocked ? 'bg-gray-100 dark:bg-gray-800 text-gray-400' : 'bg-primary/10 text-primary'} flex items-center justify-center font-bold text-lg">
                     ${isLocked ? '<i class="ph-fill ph-lock-key text-xl"></i>' : `<i class="ph-fill ${icon} text-xl md:text-2xl"></i>`}
                 </div>
                 <div class="flex-1">
                     <h3 class="font-bold md:text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2">
                         ${item.title}
-                        ${item.isPremium ? '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded uppercase tracking-wider font-bold">PRO</span>' : '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded uppercase tracking-wider font-bold">FREE</span>'}
+                        ${item.isPremium ? '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded uppercase tracking-wider font-bold">PREMIUM</span>' : '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded uppercase tracking-wider font-bold">FREE</span>'}
                     </h3>
                     <p class="text-xs md:text-sm text-gray-500 mt-0.5">${item.duration} • ${item.type.toUpperCase()}</p>
                 </div>
@@ -1154,12 +1157,36 @@
 
         if(syllabusHtml === '') syllabusHtml = '<p class="text-gray-500 text-center py-4">Syllabus coming soon...</p>';
 
+        let headerButtons = '';
+        if (isUnlocked || !(course.syllabus || []).some(l => l.isPremium)) {
+            headerButtons = `<button onclick="navigate('lesson', {lessonId: '${course.syllabus?.[0]?.id}'})" class="px-8 py-3 md:py-4 md:text-lg gradient-bg text-white font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all w-full max-w-xs md:max-w-sm">Continue Learning</button>`;
+        } else {
+            headerButtons = `
+                <div class="flex gap-3 w-full max-w-sm md:max-w-md">
+                    <button onclick="navigate('lesson', {lessonId: '${course.syllabus?.[0]?.id}'})" class="flex-1 py-3 md:py-4 md:text-lg bg-white/20 hover:bg-white/30 backdrop-blur text-white font-bold rounded-xl active:scale-95 transition-all border border-white/20">Try Free</button>
+                    <button onclick="navigate('upgrade', {courseId: '${course.id}'})" class="flex-1 py-3 md:py-4 md:text-lg bg-white text-primary font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <i class="ph-fill ph-lock-key-open"></i> Buy ₹${course.price}
+                    </button>
+                </div>
+            `;
+        }
+
         return `
         <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full pb-20 md:pb-8">
             <div class="${course.bg.split(' ')[0]} dark:bg-darkCard p-6 pt-10 md:pt-16 rounded-b-[40px] md:rounded-[40px] md:mx-6 md:mt-6 relative overflow-hidden shadow-sm max-w-5xl mx-auto">
                 <button onclick="navigate('courses')" class="absolute top-6 left-6 w-10 h-10 bg-white/50 hover:bg-white/80 backdrop-blur rounded-full flex items-center justify-center text-gray-800 active:scale-95 transition-all"><i class="ph ph-arrow-left text-xl"></i></button>
                 
-                    <button onclick="navigate('lesson', {lessonId: '${course.syllabus?.[0]?.id}'})" class="px-8 py-3 md:py-4 md:text-lg gradient-bg text-white font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all w-full max-w-xs md:max-w-sm">Continue Learning</button>
+                <div class="flex flex-col items-center text-center mt-8 md:mt-4">
+                    <div class="w-24 h-24 md:w-32 md:h-32 rounded-2xl md:rounded-3xl bg-white flex items-center justify-center mb-4 md:mb-6 shadow-md ${course.color}">
+                        <i class="ph-fill ${course.icon} text-5xl md:text-7xl"></i>
+                    </div>
+                    <h1 class="text-2xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                        ${course.title}
+                        ${isUnlocked ? '<i class="ph-fill ph-check-circle text-green-400 text-xl md:text-2xl" title="Purchased"></i>' : ''}
+                    </h1>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm md:text-base max-w-sm md:max-w-md mb-6 md:mb-8">Master the fundamentals of ${course.title.split(' ')[0]} with hands-on practice.</p>
+                    
+                    ${headerButtons}
                 </div>
             </div>
 
@@ -1179,13 +1206,15 @@
         const lesson = (course.syllabus || []).find(l => l.id === AppState.currentLessonId) || course.syllabus[0];
 
         // Double check server-side lock
-        if (lesson.isPremium && (!AppState.user || !AppState.user.isPro)) {
+        const isUnlocked = AppState.user?.unlockedCourses?.includes(courseId);
+        
+        if (lesson.isPremium && !isUnlocked) {
             return `
             <div class="flex flex-col h-full items-center justify-center p-6 bg-gray-50 dark:bg-dark text-center">
                 <div class="w-24 h-24 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-500 mb-6"><i class="ph-fill ph-lock-key text-5xl"></i></div>
                 <h2 class="text-2xl font-bold mb-2">Premium Content</h2>
-                <p class="text-gray-500 mb-8 max-w-sm">This lesson is reserved for ProgramPros PRO members. Upgrade to unlock videos, notes, and certificates.</p>
-                <button onclick="navigate('upgrade')" class="w-full max-w-xs py-4 gradient-bg text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">Upgrade Now</button>
+                <p class="text-gray-500 mb-8 max-w-sm">This lesson is reserved for students who purchased <strong>${course.title}</strong>.</p>
+                <button onclick="navigate('upgrade', {courseId: '${course.id}'})" class="w-full max-w-xs py-4 gradient-bg text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">Unlock Course for ₹${course.price}</button>
                 <button onclick="navigate('courseDetail')" class="mt-4 text-gray-500 font-bold hover:underline">Go Back</button>
             </div>`;
         }
@@ -1525,29 +1554,29 @@
     }
 
     function renderProfile() {
+        const unlockedCount = AppState.user.unlockedCourses?.length || 0;
+        
         return `
         <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full pb-24 md:pb-8 w-full">
             <div class="max-w-4xl mx-auto w-full">
                 <!-- Profile Header -->
                 <div class="bg-white dark:bg-darkCard pt-12 md:pt-16 pb-6 px-6 rounded-b-[40px] md:rounded-b-[60px] shadow-sm flex flex-col items-center relative overflow-hidden">
-                    ${AppState.user.isPro ? '<div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><i class="ph-fill ph-crown text-9xl"></i></div>' : ''}
                     <button onclick="navigate('settings')" class="absolute top-6 right-6 md:top-8 md:right-8 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-500 active:scale-95 z-10 transition-colors"><i class="ph ph-gear text-2xl md:text-3xl"></i></button>
                     
                     <div class="relative mb-4 md:mb-6 z-10">
-                        <img src="${AppState.user.avatar}" class="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 ${AppState.user.isPro ? 'border-yellow-400' : 'border-white dark:border-gray-800'} shadow-lg object-cover">
+                        <img src="${AppState.user.avatar}" class="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white dark:border-gray-800 shadow-lg object-cover">
                         <div class="absolute -bottom-2 right-0 bg-yellow-400 text-white text-xs md:text-sm font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-lg border-2 border-white dark:border-gray-800 shadow-sm">Lvl ${AppState.user.level}</div>
                     </div>
                     <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
                         ${AppState.user.name}
-                        ${AppState.user.isPro ? '<i class="ph-fill ph-seal-check text-yellow-500 text-xl md:text-2xl" title="Pro Member"></i>' : ''}
                     </h1>
                     <p class="text-sm md:text-base text-gray-500 mb-6 md:mb-8">Student ID: ${AppState.user.studentId}</p>
                     
                     <!-- Stats Row -->
                     <div class="flex w-full max-w-2xl divide-x divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800 pt-6 md:pt-8 z-10">
                         <div class="flex-1 flex flex-col items-center">
-                            <span class="text-xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">12</span>
-                            <span class="text-xs md:text-sm text-gray-500 uppercase tracking-wider font-medium">Courses</span>
+                            <span class="text-xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">${unlockedCount}</span>
+                            <span class="text-xs md:text-sm text-gray-500 uppercase tracking-wider font-medium">Owned</span>
                         </div>
                         <div class="flex-1 flex flex-col items-center">
                             <span class="text-xl md:text-3xl font-bold text-yellow-500 mb-1 flex items-center gap-1"><i class="ph-fill ph-star text-sm md:text-xl"></i>${AppState.user.points}</span>
@@ -1559,18 +1588,17 @@
                         </div>
                     </div>
 
-                    ${!AppState.user.isPro ? `
-                    <!-- Upgrade Banner -->
-                    <div onclick="navigate('upgrade')" class="mt-8 max-w-xl w-full bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl md:rounded-3xl p-4 md:p-5 flex items-center justify-between border border-gray-700 shadow-xl cursor-pointer hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all z-10">
+                    <!-- Premium Courses Link -->
+                    <div onclick="navigate('courses')" class="mt-8 max-w-xl w-full bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl md:rounded-3xl p-4 md:p-5 flex items-center justify-between border border-gray-700 shadow-xl cursor-pointer hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all z-10">
                         <div class="flex items-center gap-3 md:gap-4">
-                            <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white shrink-0"><i class="ph-fill ph-crown text-xl md:text-2xl"></i></div>
+                            <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white shrink-0"><i class="ph-fill ph-books text-xl md:text-2xl"></i></div>
                             <div>
-                                <h3 class="font-bold text-white md:text-lg">Upgrade to Pro</h3>
-                                <p class="text-xs md:text-sm text-gray-400">Unlock premium courses & features</p>
+                                <h3 class="font-bold text-white md:text-lg">Browse Premium Courses</h3>
+                                <p class="text-xs md:text-sm text-gray-400">Unlock more certificates & skills</p>
                             </div>
                         </div>
                         <i class="ph ph-caret-right text-gray-500 md:text-xl"></i>
-                    </div>` : ''}
+                    </div>
                 </div>
 
                 <div class="p-6 space-y-6 pt-0 mt-8">
@@ -2002,88 +2030,80 @@
     }
 
     function renderUpgrade() {
-        if (AppState.user && AppState.user.isPro) {
+        const courseId = AppState.currentCourseId || 'c1';
+        const course = MockData.courses.find(c => c.id === courseId) || MockData.courses[0];
+        
+        const isUnlocked = AppState.user && AppState.user.unlockedCourses?.includes(courseId);
+
+        if (isUnlocked) {
             return `
             <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full flex flex-col">
                 <div class="p-4 md:p-6 flex items-center gap-4 sticky top-0 z-10 max-w-4xl mx-auto w-full">
-                    <button onclick="navigate('profile')" class="w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-darkCard hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full flex items-center justify-center shadow-sm text-gray-500 active:scale-95 transition-colors"><i class="ph ph-arrow-left text-xl md:text-2xl"></i></button>
+                    <button onclick="navigate('courseDetail')" class="w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-darkCard hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full flex items-center justify-center shadow-sm text-gray-500 active:scale-95 transition-colors"><i class="ph ph-arrow-left text-xl md:text-2xl"></i></button>
                 </div>
                 <div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                    <div class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-500 mb-6 shadow-inner"><i class="ph-fill ph-crown text-5xl md:text-7xl"></i></div>
-                    <h2 class="text-2xl md:text-4xl font-bold mb-3 md:mb-4">You are a Pro!</h2>
-                    <p class="text-gray-500 md:text-lg max-w-md mx-auto">Thank you for supporting ProgramPros. All premium features are unlocked.</p>
+                    <div class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-green-100 flex items-center justify-center text-green-500 mb-6 shadow-inner"><i class="ph-fill ph-check-circle text-5xl md:text-7xl"></i></div>
+                    <h2 class="text-2xl md:text-4xl font-bold mb-3 md:mb-4">Course Unlocked!</h2>
+                    <p class="text-gray-500 md:text-lg max-w-md mx-auto mb-8">You already own <strong>${course.title}</strong>. All premium lessons and materials are available.</p>
+                    <button onclick="navigate('courseDetail')" class="px-8 py-3 bg-primary text-white font-bold rounded-xl active:scale-95 transition-all">Go to Course</button>
                 </div>
             </div>`;
         }
 
-        const plan = MockData.plans[0];
-        let featuresHtml = plan.features.map(feat => `
-            <li class="card__list_item">
-                <span class="check">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="check_svg">
-                        <path fill-rule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clip-rule="evenodd"></path>
-                    </svg>
-                </span>
-                <span class="list_text">${feat}</span>
-            </li>
-        `).join('');
+        // Generate QR Code URL securely using upi deep linking
+        const upiId = "bholanathk460@okhdfcbank";
+        const payeeName = "ProgramPros";
+        const transactionNote = `Purchase ${course.title} (${course.id})`;
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${course.price}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+        const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUrl)}&margin=10`;
 
         return `
         <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full flex flex-col items-center">
             <div class="p-4 md:p-6 flex items-center gap-4 sticky top-0 z-10 w-full max-w-4xl mx-auto">
-                <button onclick="navigate('profile')" class="w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-darkCard hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full flex items-center justify-center shadow-sm text-gray-500 active:scale-95 transition-colors"><i class="ph ph-arrow-left text-xl md:text-2xl"></i></button>
+                <button onclick="navigate('courseDetail')" class="w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-darkCard hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full flex items-center justify-center shadow-sm text-gray-500 active:scale-95 transition-colors"><i class="ph ph-arrow-left text-xl md:text-2xl"></i></button>
             </div>
             
-            <div class="flex-1 flex flex-col items-center justify-center p-6 py-10 md:py-16 w-full">
+            <div class="flex-1 flex flex-col items-center justify-center p-6 py-4 md:py-8 w-full">
                 
-                <div class="pro-card hover:scale-[1.02] transition-transform duration-300">
+                <div class="pro-card transition-transform duration-300">
                     <div class="card__border"></div>
                     <div class="card_title__container">
-                        <span class="card_title">${plan.title}</span>
-                        <p class="card_paragraph">${plan.desc}</p>
+                        <span class="card_title text-center block w-full">Unlock Full Course</span>
+                        <p class="card_paragraph text-center w-full block mt-2 text-white font-bold text-lg">${course.title}</p>
                     </div>
                     <hr class="line" />
-                    <ul class="card__list mb-4">
-                        ${featuresHtml}
-                    </ul>
                     
-                    <div class="mt-2 mb-4">
-                        <span class="text-3xl font-bold text-white">₹${plan.price}</span>
+                    <div class="bg-white p-2 rounded-xl mx-auto my-2 w-fit relative group">
+                        <img src="${qrCodeImageUrl}" alt="Pay via UPI QR" class="w-48 h-48 md:w-56 md:h-56 rounded-lg">
+                        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-bold text-sm">
+                            <i class="ph ph-scan text-3xl mb-1"></i> Scan with any UPI App
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-2 mb-4">
+                        <p class="text-xs text-gray-400 mb-1 uppercase tracking-widest">Amount to Pay</p>
+                        <span class="text-3xl font-bold text-white">₹${course.price}</span>
                         <span class="text-xs text-gray-400">/ lifetime</span>
                     </div>
 
-                    <button id="pay-button" onclick="processUPIPayment(${plan.price}, '${plan.title}')" class="pro-button flex justify-center items-center gap-2">
-                        Pay with UPI <i class="ph-fill ph-arrow-right"></i>
+                    <button onclick="notifyAdminPayment('${course.title}')" class="pro-button flex justify-center items-center gap-2">
+                        I have paid <i class="ph-fill ph-check-circle"></i>
                     </button>
                 </div>
                 
-                <p class="text-center text-xs text-gray-500 mt-8 max-w-xs">Payments are securely processed via your installed UPI app (GPay, PhonePe, Paytm).</p>
+                <div class="text-center mt-8 max-w-sm">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed"><strong class="text-gray-800 dark:text-gray-200">Instructions:</strong> Scan the QR code using Google Pay, PhonePe, or Paytm. After successful payment, click the button above.</p>
+                </div>
             </div>
         </div>
         `;
     }
 
-    window.processUPIPayment = function(amount, planName) {
-        const btn = $('pay-button');
-        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Processing...';
-        const upiId = "bholanathk460@okhdfcbank";
-        const payeeName = "ProgramPros";
-        const transactionNote = "Upgrade to " + planName;
-        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-
-        showToast('Opening payment app...', 'info');
-
+    window.notifyAdminPayment = function(courseName) {
+        showToast(`Request sent! Admin will verify payment and unlock ${courseName} within 2 hours.`, 'success');
         setTimeout(() => {
-            // Attempt to open the UPI app
-            window.location.href = upiUrl;
-
-            // Admin manual verification Fallback
-            setTimeout(() => {
-                showToast('Payment initiated! Admin will verify and activate Pro within 2 hours.', 'success');
-                // We DO NOT update `isPro: true` here anymore. It must be done in the Firebase Console by you.
-                navigate('profile');
-            }, 3000);
-        }, 500);
+            navigate('dashboard');
+        }, 3500);
     }
 
     // --- INITIALIZATION ---
