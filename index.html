@@ -171,7 +171,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, signOut, RecaptchaVerifier, linkWithPhoneNumber, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, signOut, RecaptchaVerifier, linkWithPhoneNumber, signInWithPhoneNumber, EmailAuthProvider, linkWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
@@ -214,7 +214,10 @@
         user: null, // Populated from Firestore
         forumPosts: [], // Populated from Firestore
         theme: 'light',
-        authMode: 'email', // 'email' or 'phone'
+        authMode: 'email', // Used for login tabs
+        signupStep: 1, // 1: Contact, 2: OTP, 3: Password & Name
+        signupContact: '',
+        signupType: 'email', // 'email' or 'phone'
         currentCourseId: null,
         currentLessonId: null,
         authReady: false
@@ -294,8 +297,12 @@
         if (params.courseId) AppState.currentCourseId = params.courseId;
         
         // Reset auth mode defaults when navigating to auth pages
-        if (page === 'login' || page === 'signup') {
+        if (page === 'login') {
             AppState.authMode = 'email';
+        }
+        if (page === 'signup') {
+            AppState.signupStep = 1;
+            AppState.signupContact = '';
         }
         
         // Clear recaptcha state securely when changing screens
@@ -313,6 +320,29 @@
         AppState.user = null;
         showToast('Logged out securely.', 'info');
         navigate('welcome');
+    }
+
+    window.mockLogin = function() {
+        if (AppState.authReady) {
+            showToast('Successfully authenticated!');
+            navigate('dashboard');
+        } else {
+            showToast('Demo Mode: Logging in...', 'info');
+            setTimeout(() => { 
+                AppState.user = {
+                    uid: 'mock-123',
+                    name: 'Alex Developer',
+                    email: 'alex@example.com',
+                    avatar: 'https://i.pravatar.cc/150?img=11',
+                    studentId: 'PP-2026-8942',
+                    joinDate: 'Jan 2026',
+                    level: 12,
+                    points: 1450,
+                    isPro: false
+                };
+                navigate('dashboard'); 
+            }, 1000);
+        }
     }
 
     // --- AUTHENTICATION LOGIC ---
@@ -373,7 +403,114 @@
         }
     }
 
-    // --- OTP AUTHENTICATION (LOGIN & SIGNUP) ---
+    // --- SIGNUP WIZARD LOGIC (EMAIL OR PHONE -> OTP -> PASSWORD) ---
+    
+    window.processSignupStep1 = async function(event) {
+        const contact = $('signup-contact').value.trim();
+        if (!contact) return showToast('Please enter an Email or Mobile Number', 'error');
+
+        const btn = event.currentTarget;
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Processing...';
+        btn.disabled = true;
+
+        // Auto-detect if input is a phone number (min 7 digits)
+        const isPhone = /^\+?[0-9\s\-]{7,15}$/.test(contact);
+        AppState.signupType = isPhone ? 'phone' : 'email';
+        AppState.signupContact = contact;
+
+        if (isPhone) {
+            // Prepend India code if user typed exactly 10 digits without code
+            let phone = contact.startsWith('+') ? contact : '+91' + contact; 
+            try {
+                if (!window.recaptchaVerifier) {
+                    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container-signup', { 'size': 'invisible' });
+                }
+                window.confirmationResult = await signInWithPhoneNumber(auth, phone, window.recaptchaVerifier);
+                showToast('OTP sent via SMS!', 'success');
+                AppState.signupStep = 2;
+                renderApp();
+            } catch (e) {
+                showToast(e.message.replace('Firebase: ', ''), 'error');
+                btn.innerHTML = 'Send OTP';
+                btn.disabled = false;
+            }
+        } else {
+            // Email Flow - Firebase SDK doesn't natively send 6-digit OTPs to email without a custom backend.
+            // We simulate it here for the UI flow demo.
+            showToast('Demo Mode: Email OTP sent! Use 123456.', 'info');
+            setTimeout(() => {
+                AppState.signupStep = 2;
+                renderApp();
+            }, 1000);
+        }
+    }
+
+    window.processSignupStep2 = async function(event) {
+        const otp = $('signup-otp').value.trim();
+        if (!otp) return showToast('Enter OTP', 'error');
+
+        const btn = event.currentTarget;
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Verifying...';
+        btn.disabled = true;
+
+        if (AppState.signupType === 'phone') {
+            try {
+                await window.confirmationResult.confirm(otp);
+                // OTP verified successfully, proceed to set name and password
+                AppState.signupStep = 3;
+                renderApp();
+            } catch (e) {
+                showToast('Invalid OTP entered', 'error');
+                btn.innerHTML = 'Verify OTP';
+                btn.disabled = false;
+            }
+        } else {
+            // Mock Email Verification
+            if (otp === '123456') {
+                AppState.signupStep = 3;
+                renderApp();
+            } else {
+                showToast('Invalid OTP. Use 123456 for demo.', 'error');
+                btn.innerHTML = 'Verify OTP';
+                btn.disabled = false;
+            }
+        }
+    }
+
+    window.processSignupStep3 = async function(event) {
+        const name = $('signup-name').value.trim();
+        const pwd = $('signup-pwd').value;
+        // If they used phone, Firebase requires an email to set a password credential, so we ask for it now.
+        const email = AppState.signupType === 'email' ? AppState.signupContact : $('signup-extra-email').value.trim();
+
+        if (!name || !pwd || !email) return showToast('Please fill all fields', 'error');
+
+        const btn = event.currentTarget;
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Creating...';
+        btn.disabled = true;
+
+        try {
+            if (AppState.signupType === 'phone') {
+                // User is signed in via Phone Auth. Link an Email/Password so they can log in with it later.
+                const credential = EmailAuthProvider.credential(email, pwd);
+                await linkWithCredential(auth.currentUser, credential);
+                await updateProfile(auth.currentUser, { displayName: name });
+            } else {
+                // Email Auth
+                const userCredential = await createUserWithEmailAndPassword(auth, email, pwd);
+                await updateProfile(userCredential.user, { displayName: name });
+            }
+            
+            showToast('Account created successfully!', 'success');
+            navigate('dashboard');
+        } catch (e) {
+            showToast(e.message.replace('Firebase: ', ''), 'error');
+            btn.innerHTML = 'Complete Sign Up';
+            btn.disabled = false;
+        }
+    }
+
+    // --- OTP AUTHENTICATION (LOGIN TAB) ---
     window.switchAuthMode = function(mode) {
         AppState.authMode = mode;
         if (window.recaptchaVerifier) {
@@ -599,6 +736,30 @@
         </div>`;
     }
 
+    function renderWelcome() {
+        return `
+        <div class="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-blue-600 to-purple-700 text-white animate-fade-in relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
+                <div class="absolute top-10 left-10 w-32 h-32 bg-white rounded-full mix-blend-overlay blur-3xl animate-pulse-slow"></div>
+                <div class="absolute bottom-10 right-10 w-48 h-48 bg-purple-300 rounded-full mix-blend-overlay blur-3xl animate-pulse-slow" style="animation-delay: 1s;"></div>
+            </div>
+            
+            <div class="z-10 flex flex-col items-center text-center">
+                <div class="w-24 h-24 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/30">
+                    <i class="ph-fill ph-code text-5xl text-white"></i>
+                </div>
+                <h1 class="text-4xl font-bold mb-3 tracking-tight">ProgramPros</h1>
+                <p class="text-blue-100 text-lg mb-10 max-w-xs">Master programming step-by-step with interactive lessons and real code.</p>
+                
+                <div class="w-full space-y-4 max-w-sm">
+                    <button onclick="navigate('signup')" class="w-full py-4 bg-white text-primary font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-95 text-lg">Get Started</button>
+                    <button onclick="navigate('login')" class="w-full py-4 bg-white/10 backdrop-blur-md text-white font-bold rounded-2xl border border-white/20 hover:bg-white/20 transition-all active:scale-95 text-lg">Log In</button>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
     function renderLogin() {
         const isEmail = AppState.authMode === 'email';
         
@@ -669,64 +830,79 @@
     }
 
     function renderSignup() {
-        const isEmail = AppState.authMode === 'email';
+        const step = AppState.signupStep || 1;
+
+        let contentHtml = '';
+        
+        if (step === 1) {
+            contentHtml = `
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Create your account using Email or Mobile Number.</p>
+                <div id="recaptcha-container-signup"></div>
+                <div class="space-y-4 mb-8 flex-1">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email or Mobile Number</label>
+                        <input id="signup-contact" type="text" placeholder="student@example.com or +91 9876543210" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
+                    </div>
+                </div>
+                <button onclick="processSignupStep1(event)" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl active:scale-95 transition-all mb-4">Send OTP</button>
+                
+                <div class="relative flex items-center justify-center mb-6 mt-4">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200 dark:border-gray-700"></div></div>
+                    <span class="relative bg-white dark:bg-dark px-4 text-sm text-gray-500">Or continue with</span>
+                </div>
+                <button onclick="mockLogin()" class="w-full py-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-medium flex items-center justify-center gap-3 active:scale-95 transition-all hover:bg-gray-100 dark:hover:bg-gray-700 mb-4">
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-6 h-6" alt="Google">
+                    <span>Google</span>
+                </button>
+            `;
+        } else if (step === 2) {
+            contentHtml = `
+                <p class="text-gray-500 dark:text-gray-400 mb-6">We've sent a 6-digit code to <strong class="text-gray-800 dark:text-white">${AppState.signupContact}</strong>.</p>
+                <div class="space-y-4 mb-8 flex-1">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enter OTP</label>
+                        <input id="signup-otp" type="text" placeholder="123456" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none tracking-widest text-center text-xl dark:text-white">
+                    </div>
+                </div>
+                <button onclick="processSignupStep2(event)" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl active:scale-95 transition-all mb-4">Verify OTP</button>
+                <p class="text-center mt-4 text-sm text-gray-600 dark:text-gray-400 pb-4">
+                    Wrong info? <span onclick="AppState.signupStep = 1; renderApp();" class="text-primary font-bold cursor-pointer hover:underline">Go Back</span>
+                </p>
+            `;
+        } else if (step === 3) {
+            contentHtml = `
+                <p class="text-gray-500 dark:text-gray-400 mb-6 flex items-center gap-2 text-green-600 dark:text-green-400"><i class="ph-fill ph-check-circle text-lg"></i> Verified! Let's finish up.</p>
+                <div class="space-y-4 mb-8 flex-1">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                        <input id="signup-name" type="text" placeholder="Alex Developer" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
+                    </div>
+                    ${AppState.signupType === 'phone' ? `
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
+                        <input id="signup-extra-email" type="email" placeholder="Required for recovery" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
+                    </div>` : ''}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Set Password</label>
+                        <input id="signup-pwd" type="password" placeholder="Create a strong password" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
+                    </div>
+                </div>
+                <button onclick="processSignupStep3(event)" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl active:scale-95 transition-all mb-4">Complete Sign Up</button>
+            `;
+        }
 
         return `
         <div class="h-full flex flex-col p-6 animate-fade-in bg-white dark:bg-dark items-center">
             <div class="w-full max-w-md flex flex-col h-full">
                 <button onclick="navigate('welcome')" class="self-start p-2 -ml-2 text-gray-500 dark:text-gray-400 mb-6 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-2xl"></i></button>
                 <h1 class="text-3xl font-bold mb-2">Create Account</h1>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">Start your programming journey today.</p>
                 
-                <!-- Auth Mode Toggle -->
-                <div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-6">
-                    <button onclick="switchAuthMode('email')" class="${isEmail ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'} flex-1 py-2 rounded-lg text-sm font-bold transition-all">Email</button>
-                    <button onclick="switchAuthMode('phone')" class="${!isEmail ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'} flex-1 py-2 rounded-lg text-sm font-bold transition-all">Mobile OTP</button>
-                </div>
-
-                ${isEmail ? `
-                <div class="space-y-4 mb-8 flex-1">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-                        <input id="signup-name" type="text" placeholder="Student Name" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                        <input id="signup-email" type="email" placeholder="student@example.com" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password</label>
-                        <input id="signup-pwd" type="password" placeholder="Create a strong password" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
-                    </div>
-                </div>
-                <button onclick="handleSignup(event)" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl active:scale-95 transition-all mb-4">Sign Up</button>
-                ` : `
-                <div id="recaptcha-container"></div>
-                <div class="space-y-4 mb-8 flex-1">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-                        <input id="auth-name" type="text" placeholder="Student Name" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mobile Number</label>
-                        <div class="flex gap-2">
-                            <input id="auth-phone" type="tel" placeholder="+91 9876543210" class="flex-1 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
-                            <button id="btn-auth-send" onclick="sendAuthOTP(true)" class="px-6 bg-primary text-white font-bold rounded-xl active:scale-95 transition-transform">Send OTP</button>
-                        </div>
-                    </div>
-                    <div id="auth-otp-section" style="display:none;">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enter OTP</label>
-                        <div class="flex gap-2">
-                            <input id="auth-otp" type="text" placeholder="123456" class="flex-1 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 outline-none tracking-widest text-center dark:text-white">
-                            <button id="btn-auth-verify" onclick="verifyAuthOTP(true)" class="px-6 bg-green-500 text-white font-bold rounded-xl active:scale-95 transition-transform whitespace-nowrap">Sign Up</button>
-                        </div>
-                    </div>
-                </div>
-                `}
+                ${contentHtml}
                 
-                <p class="text-center mt-4 text-sm text-gray-600 dark:text-gray-400 pb-4">
+                ${step === 1 ? `
+                <p class="text-center mt-auto text-sm text-gray-600 dark:text-gray-400 pb-4">
                     Already have an account? <span onclick="navigate('login')" class="text-primary font-bold cursor-pointer hover:underline">Log In</span>
-                </p>
+                </p>` : ''}
             </div>
         </div>
         `;
@@ -1829,15 +2005,15 @@
 
             onAuthStateChanged(auth, async (user) => {
                 AppState.authReady = true;
-                if (user && user.emailVerified === false && !user.isAnonymous) {
-                    // Do nothing, force them to log out/verify
-                    return;
-                }
                 
                 if (user) {
                     await initializeUserData(user.uid, user);
                     listenToForum();
-                    if (AppState.currentPage === 'login' || AppState.currentPage === 'welcome' || AppState.currentPage === 'signup') {
+                    
+                    // PREVENT auto-redirecting if the user is still in the middle of the Signup Wizard (e.g. entering password)
+                    if (AppState.currentPage === 'signup') return;
+
+                    if (AppState.currentPage === 'login' || AppState.currentPage === 'welcome') {
                         navigate('dashboard');
                     }
                 } else {
