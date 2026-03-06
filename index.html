@@ -171,7 +171,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, signOut, RecaptchaVerifier, linkWithPhoneNumber } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile, signOut, RecaptchaVerifier, linkWithPhoneNumber, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
 
@@ -214,6 +214,7 @@
         user: null, // Populated from Firestore
         forumPosts: [], // Populated from Firestore
         theme: 'light',
+        authMode: 'email', // 'email' or 'phone'
         currentCourseId: null,
         currentLessonId: null,
         authReady: false
@@ -291,6 +292,18 @@
     window.navigate = function(page, params = {}) {
         AppState.currentPage = page;
         if (params.courseId) AppState.currentCourseId = params.courseId;
+        
+        // Reset auth mode defaults when navigating to auth pages
+        if (page === 'login' || page === 'signup') {
+            AppState.authMode = 'email';
+        }
+        
+        // Clear recaptcha state securely when changing screens
+        if (window.recaptchaVerifier) {
+            try { window.recaptchaVerifier.clear(); } catch(e){}
+            window.recaptchaVerifier = null;
+        }
+
         renderApp();
         $('app-root').scrollTo(0,0);
     }
@@ -360,7 +373,69 @@
         }
     }
 
-    // --- PHONE VERIFICATION LOGIC ---
+    // --- OTP AUTHENTICATION (LOGIN & SIGNUP) ---
+    window.switchAuthMode = function(mode) {
+        AppState.authMode = mode;
+        if (window.recaptchaVerifier) {
+            try { window.recaptchaVerifier.clear(); } catch(e){}
+            window.recaptchaVerifier = null;
+        }
+        renderApp();
+    }
+
+    window.sendAuthOTP = async function(isSignup) {
+        const phone = $('auth-phone').value.trim();
+        if (!phone.startsWith('+')) return showToast('Include country code (e.g., +91)', 'error');
+        if (isSignup && !$('auth-name').value.trim()) return showToast('Please enter your full name', 'error');
+
+        try {
+            if (!window.recaptchaVerifier) {
+                window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
+            }
+            $('btn-auth-send').innerHTML = '<i class="ph ph-spinner animate-spin"></i>';
+            $('btn-auth-send').disabled = true;
+
+            // This single API handles both Phone signups and logins!
+            window.confirmationResult = await signInWithPhoneNumber(auth, phone, window.recaptchaVerifier);
+
+            showToast('OTP sent via SMS!', 'success');
+            $('btn-auth-send').innerHTML = '<i class="ph ph-check"></i> Sent';
+            $('auth-otp-section').style.display = 'block';
+            $('auth-phone').disabled = true;
+        } catch (error) {
+            showToast(error.message.replace('Firebase: ', ''), 'error');
+            $('btn-auth-send').innerHTML = 'Send OTP';
+            $('btn-auth-send').disabled = false;
+        }
+    }
+
+    window.verifyAuthOTP = async function(isSignup) {
+        const otp = $('auth-otp').value.trim();
+        if (!otp) return showToast('Enter OTP', 'error');
+
+        try {
+            const btn = $('btn-auth-verify');
+            btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>';
+            btn.disabled = true;
+            
+            const result = await window.confirmationResult.confirm(otp);
+            
+            // If this was a signup flow, save their chosen name to their profile
+            if (isSignup) {
+                const name = $('auth-name').value.trim();
+                await updateProfile(result.user, { displayName: name });
+            }
+
+            showToast(isSignup ? 'Account created successfully!' : 'Logged in successfully!', 'success');
+            // onAuthStateChanged handles the actual routing to Dashboard
+        } catch (error) {
+            showToast('Invalid OTP entered.', 'error');
+            $('btn-auth-verify').innerHTML = isSignup ? 'Verify & Sign Up' : 'Verify & Log In';
+            $('btn-auth-verify').disabled = false;
+        }
+    }
+
+    // --- PHONE VERIFICATION LOGIC (SETTINGS PAGE) ---
     window.sendPhoneOTP = async function() {
         const phone = $('phone-input').value.trim();
         if (!phone.startsWith('+')) return showToast('Include country code (e.g., +91)', 'error');
@@ -524,38 +599,23 @@
         </div>`;
     }
 
-    function renderWelcome() {
-        return `
-        <div class="h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-blue-600 to-purple-700 text-white animate-fade-in relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-                <div class="absolute top-10 left-10 w-32 h-32 bg-white rounded-full mix-blend-overlay blur-3xl animate-pulse-slow"></div>
-                <div class="absolute bottom-10 right-10 w-48 h-48 bg-purple-300 rounded-full mix-blend-overlay blur-3xl animate-pulse-slow" style="animation-delay: 1s;"></div>
-            </div>
-            
-            <div class="z-10 flex flex-col items-center text-center">
-                <div class="w-24 h-24 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/30">
-                    <i class="ph-fill ph-code text-5xl text-white"></i>
-                </div>
-                <h1 class="text-4xl font-bold mb-3 tracking-tight">ProgramPros</h1>
-                <p class="text-blue-100 text-lg mb-10 max-w-xs">Master programming step-by-step with interactive lessons and real code.</p>
-                
-                <div class="w-full space-y-4 max-w-sm">
-                    <button onclick="navigate('signup')" class="w-full py-4 bg-white text-primary font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-95 text-lg">Get Started</button>
-                    <button onclick="navigate('login')" class="w-full py-4 bg-white/10 backdrop-blur-md text-white font-bold rounded-2xl border border-white/20 hover:bg-white/20 transition-all active:scale-95 text-lg">Log In</button>
-                </div>
-            </div>
-        </div>
-        `;
-    }
-
     function renderLogin() {
+        const isEmail = AppState.authMode === 'email';
+        
         return `
         <div class="h-full flex flex-col p-6 animate-fade-in bg-white dark:bg-dark items-center">
             <div class="w-full max-w-md flex flex-col h-full">
                 <button onclick="navigate('welcome')" class="self-start p-2 -ml-2 text-gray-500 dark:text-gray-400 mb-6 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-2xl"></i></button>
                 <h1 class="text-3xl font-bold mb-2">Welcome Back</h1>
-                <p class="text-gray-500 dark:text-gray-400 mb-8">Sign in to continue your learning journey.</p>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Sign in to continue your learning journey.</p>
                 
+                <!-- Auth Mode Toggle -->
+                <div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-6">
+                    <button onclick="switchAuthMode('email')" class="${isEmail ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'} flex-1 py-2 rounded-lg text-sm font-bold transition-all">Email</button>
+                    <button onclick="switchAuthMode('phone')" class="${!isEmail ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'} flex-1 py-2 rounded-lg text-sm font-bold transition-all">Mobile OTP</button>
+                </div>
+
+                ${isEmail ? `
                 <div class="space-y-4 mb-8">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
@@ -569,8 +629,26 @@
                         <a href="#" class="text-sm text-primary font-medium hover:underline">Forgot Password?</a>
                     </div>
                 </div>
-                
                 <button onclick="handleLogin(event)" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl active:scale-95 transition-all mb-6">Log In</button>
+                ` : `
+                <div id="recaptcha-container"></div>
+                <div class="space-y-4 mb-8">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mobile Number</label>
+                        <div class="flex gap-2">
+                            <input id="auth-phone" type="tel" placeholder="+91 9876543210" class="flex-1 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
+                            <button id="btn-auth-send" onclick="sendAuthOTP(false)" class="px-6 bg-primary text-white font-bold rounded-xl active:scale-95 transition-transform">Send OTP</button>
+                        </div>
+                    </div>
+                    <div id="auth-otp-section" style="display:none;">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enter OTP</label>
+                        <div class="flex gap-2">
+                            <input id="auth-otp" type="text" placeholder="123456" class="flex-1 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 outline-none tracking-widest text-center dark:text-white">
+                            <button id="btn-auth-verify" onclick="verifyAuthOTP(false)" class="px-6 bg-green-500 text-white font-bold rounded-xl active:scale-95 transition-transform whitespace-nowrap">Log In</button>
+                        </div>
+                    </div>
+                </div>
+                `}
                 
                 <div class="relative flex items-center justify-center mb-6">
                     <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200 dark:border-gray-700"></div></div>
@@ -591,13 +669,22 @@
     }
 
     function renderSignup() {
+        const isEmail = AppState.authMode === 'email';
+
         return `
         <div class="h-full flex flex-col p-6 animate-fade-in bg-white dark:bg-dark items-center">
             <div class="w-full max-w-md flex flex-col h-full">
                 <button onclick="navigate('welcome')" class="self-start p-2 -ml-2 text-gray-500 dark:text-gray-400 mb-6 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-2xl"></i></button>
                 <h1 class="text-3xl font-bold mb-2">Create Account</h1>
-                <p class="text-gray-500 dark:text-gray-400 mb-8">Start your programming journey today.</p>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Start your programming journey today.</p>
                 
+                <!-- Auth Mode Toggle -->
+                <div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-6">
+                    <button onclick="switchAuthMode('email')" class="${isEmail ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'} flex-1 py-2 rounded-lg text-sm font-bold transition-all">Email</button>
+                    <button onclick="switchAuthMode('phone')" class="${!isEmail ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'} flex-1 py-2 rounded-lg text-sm font-bold transition-all">Mobile OTP</button>
+                </div>
+
+                ${isEmail ? `
                 <div class="space-y-4 mb-8 flex-1">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
@@ -612,8 +699,30 @@
                         <input id="signup-pwd" type="password" placeholder="Create a strong password" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
                     </div>
                 </div>
-                
                 <button onclick="handleSignup(event)" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl active:scale-95 transition-all mb-4">Sign Up</button>
+                ` : `
+                <div id="recaptcha-container"></div>
+                <div class="space-y-4 mb-8 flex-1">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                        <input id="auth-name" type="text" placeholder="Student Name" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mobile Number</label>
+                        <div class="flex gap-2">
+                            <input id="auth-phone" type="tel" placeholder="+91 9876543210" class="flex-1 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition-all dark:text-white">
+                            <button id="btn-auth-send" onclick="sendAuthOTP(true)" class="px-6 bg-primary text-white font-bold rounded-xl active:scale-95 transition-transform">Send OTP</button>
+                        </div>
+                    </div>
+                    <div id="auth-otp-section" style="display:none;">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Enter OTP</label>
+                        <div class="flex gap-2">
+                            <input id="auth-otp" type="text" placeholder="123456" class="flex-1 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 outline-none tracking-widest text-center dark:text-white">
+                            <button id="btn-auth-verify" onclick="verifyAuthOTP(true)" class="px-6 bg-green-500 text-white font-bold rounded-xl active:scale-95 transition-transform whitespace-nowrap">Sign Up</button>
+                        </div>
+                    </div>
+                </div>
+                `}
                 
                 <p class="text-center mt-4 text-sm text-gray-600 dark:text-gray-400 pb-4">
                     Already have an account? <span onclick="navigate('login')" class="text-primary font-bold cursor-pointer hover:underline">Log In</span>
