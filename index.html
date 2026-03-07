@@ -35,9 +35,17 @@
     </script>
     <style>
         body { -webkit-tap-highlight-color: transparent; }
-        #mobile-container { width: 100%; height: 100vh; overflow: hidden; position: relative; background-color: #f8fafc; }
+        /* Main App Container */
+        #mobile-container {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            background-color: #f8fafc;
+        }
         .dark #mobile-container { background-color: #0f172a; }
         
+        /* Better Scrollbar for Desktop */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -46,33 +54,91 @@
         .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
         .hide-scroll::-webkit-scrollbar { display: none; }
         
-        .gradient-text { background: linear-gradient(135deg, #4F46E5, #9333EA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-text {
+            background: linear-gradient(135deg, #4F46E5, #9333EA);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
         .gradient-bg { background: linear-gradient(135deg, #4F46E5, #9333EA); }
         
-        #code-editor-textarea { tab-size: 4; font-family: monospace; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+        /* Code Editor Textarea */
+        #code-editor-textarea {
+            tab-size: 4;
+            font-family: monospace;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+        
+        /* Toast */
         #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 400px; pointer-events: none; }
         .toast { pointer-events: auto; transition: all 0.3s ease; }
         
+        /* Confetti */
         .confetti-piece { position: absolute; z-index: 9999; pointer-events: none; animation: fall linear forwards; }
         @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
         
+        /* Terminal Cursor */
         .cursor-blink { animation: blink 1s step-end infinite; font-weight: bold; }
         @keyframes blink { 50% { opacity: 0; } }
 
+        /* Pro Upgrade Card (From Uiverse.io) */
         .pro-card {
             --white: hsl(0, 0%, 100%);
             --black: hsl(240, 15%, 9%);
             --paragraph: hsl(0, 0%, 83%);
             --line: hsl(240, 9%, 17%);
             --primary: hsl(266, 92%, 58%);
-            position: relative; display: flex; flex-direction: column; gap: 1rem; padding: 1.5rem; width: 100%; max-width: 22rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 22rem;
             background-color: hsla(240, 15%, 9%, 1);
-            background-image: radial-gradient(at 88% 40%, hsla(240, 15%, 9%, 1) 0px, transparent 85%), radial-gradient(at 49% 30%, hsla(240, 15%, 9%, 1) 0px, transparent 85%), radial-gradient(at 14% 26%, hsla(240, 15%, 9%, 1) 0px, transparent 85%), radial-gradient(at 0% 64%, hsla(263, 93%, 56%, 1) 0px, transparent 85%), radial-gradient(at 41% 94%, hsla(284, 100%, 84%, 1) 0px, transparent 85%), radial-gradient(at 100% 99%, hsla(306, 100%, 57%, 1) 0px, transparent 85%);
-            border-radius: 1rem; box-shadow: 0px -16px 24px 0px rgba(255, 255, 255, 0.25) inset; margin: 0 auto;
+            background-image: radial-gradient(at 88% 40%, hsla(240, 15%, 9%, 1) 0px, transparent 85%),
+                radial-gradient(at 49% 30%, hsla(240, 15%, 9%, 1) 0px, transparent 85%),
+                radial-gradient(at 14% 26%, hsla(240, 15%, 9%, 1) 0px, transparent 85%),
+                radial-gradient(at 0% 64%, hsla(263, 93%, 56%, 1) 0px, transparent 85%),
+                radial-gradient(at 41% 94%, hsla(284, 100%, 84%, 1) 0px, transparent 85%),
+                radial-gradient(at 100% 99%, hsla(306, 100%, 57%, 1) 0px, transparent 85%);
+            border-radius: 1rem;
+            box-shadow: 0px -16px 24px 0px rgba(255, 255, 255, 0.25) inset;
+            margin: 0 auto;
         }
-        .pro-card .card__border { overflow: hidden; pointer-events: none; position: absolute; z-index: -10; top: 50%; left: 50%; transform: translate(-50%, -50%); width: calc(100% + 2px); height: calc(100% + 2px); background-image: linear-gradient(0deg, hsl(0, 0%, 100%) -50%, hsl(0, 0%, 40%) 100%); border-radius: 1rem; }
-        .pro-card .card__border::before { content: ""; pointer-events: none; position: fixed; z-index: 200; top: 50%; left: 50%; transform: translate(-50%, -50%), rotate(0deg); transform-origin: left; width: 200%; height: 10rem; background-image: linear-gradient(0deg, hsla(0, 0%, 100%, 0) 0%, hsl(277, 95%, 60%) 40%, hsl(277, 95%, 60%) 60%, hsla(0, 0%, 40%, 0) 100%); animation: rotate 8s linear infinite; }
+
+        .pro-card .card__border {
+            overflow: hidden;
+            pointer-events: none;
+            position: absolute;
+            z-index: -10;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: calc(100% + 2px);
+            height: calc(100% + 2px);
+            background-image: linear-gradient(0deg, hsl(0, 0%, 100%) -50%, hsl(0, 0%, 40%) 100%);
+            border-radius: 1rem;
+        }
+
+        .pro-card .card__border::before {
+            content: "";
+            pointer-events: none;
+            position: fixed;
+            z-index: 200;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%), rotate(0deg);
+            transform-origin: left;
+            width: 200%;
+            height: 10rem;
+            background-image: linear-gradient(0deg, hsla(0, 0%, 100%, 0) 0%, hsl(277, 95%, 60%) 40%, hsl(277, 95%, 60%) 60%, hsla(0, 0%, 40%, 0) 100%);
+            animation: rotate 8s linear infinite;
+        }
+
         @keyframes rotate { to { transform: rotate(360deg); } }
+
         .pro-card .card_title__container .card_title { font-size: 1.5rem; font-weight: bold; color: var(--white); }
         .pro-card .card_title__container .card_paragraph { margin-top: 0.25rem; font-size: 0.8rem; color: var(--paragraph); }
         .pro-card .line { width: 100%; height: 0.1rem; background-color: var(--line); border: none; }
@@ -81,7 +147,20 @@
         .pro-card .card__list .card__list_item .check { display: flex; justify-content: center; align-items: center; width: 1.25rem; height: 1.25rem; background-color: var(--primary); border-radius: 50%; }
         .pro-card .card__list .card__list_item .check .check_svg { width: 0.85rem; height: 0.85rem; fill: var(--black); }
         .pro-card .card__list .card__list_item .list_text { font-size: 0.9rem; color: var(--white); }
-        .pro-card .pro-button { cursor: pointer; padding: 0.8rem; width: 100%; background-image: linear-gradient(0deg, rgba(94, 58, 238, 1) 0%, rgba(197, 107, 240, 1) 100%); font-size: 1rem; font-weight: bold; color: var(--white); border: 0; border-radius: 9999px; box-shadow: inset 0 -2px 25px -4px var(--white); transition: transform 0.2s; }
+        
+        .pro-card .pro-button {
+            cursor: pointer;
+            padding: 0.8rem;
+            width: 100%;
+            background-image: linear-gradient(0deg, rgba(94, 58, 238, 1) 0%, rgba(197, 107, 240, 1) 100%);
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--white);
+            border: 0;
+            border-radius: 9999px;
+            box-shadow: inset 0 -2px 25px -4px var(--white);
+            transition: transform 0.2s;
+        }
         .pro-card .pro-button:active { transform: scale(0.95); }
     </style>
 </head>
@@ -99,9 +178,12 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, RecaptchaVerifier, linkWithPhoneNumber, signInWithPhoneNumber, EmailAuthProvider, linkWithCredential, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+
+    // --- FIREBASE INITIALIZATION ---
+    let app, auth, db, analytics;
     
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'font-changer-4667c';
-    let app, auth, db;
     let globalFirebaseConfig;
 
     try {
@@ -111,14 +193,20 @@
             projectId: "font-changer-4667c",
             storageBucket: "font-changer-4667c.firebasestorage.app",
             messagingSenderId: "200130160747",
-            appId: "1:200130160747:web:747975551ddb296dc2a92e"
+            appId: "1:200130160747:web:747975551ddb296dc2a92e",
+            measurementId: "G-ECHQ4K1R5J"
         };
+
         globalFirebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : myFirebaseConfig;
         app = initializeApp(globalFirebaseConfig);
         auth = getAuth(app);
         db = getFirestore(app);
-    } catch (e) { console.error("Firebase init failed:", e); }
+        if (globalFirebaseConfig.measurementId) analytics = getAnalytics(app);
+    } catch (e) {
+        console.error("Firebase init failed:", e);
+    }
 
+    // --- APP STATE & DATA ---
     window.AppState = {
         currentPage: 'welcome',
         user: null, 
@@ -133,25 +221,46 @@
         authReady: false, isPostModalOpen: false 
     };
 
+    // Refactored MockData with Nested Folders for Courses
     window.MockData = {
         courses: [
             { 
                 id: 'c1', title: 'Python for Beginners', icon: 'ph-file-py', color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30', progress: 45, lessons: 12, price: 299,
                 syllabus: [
-                    { id: 'l1', title: 'Introduction to Python', type: 'video', duration: '10 mins', isPremium: false, url: 'https://www.youtube.com/embed/kqtD5dpn9C8' },
-                    { id: 'l2', title: 'Variables & Data Types', type: 'note', duration: '5 mins', isPremium: false, content: '<p>Variables are containers for storing data values.</p><pre class="bg-gray-800 text-white p-3 rounded mt-2">x = 5\ny = "Hello!"</pre>' },
-                    { id: 'l3', title: 'Advanced OOP Concepts', type: 'video', duration: '25 mins', isPremium: true, url: 'https://www.youtube.com/embed/JeznW_7DlB0' },
-                    { id: 'l4', title: 'Python Cheat Sheet', type: 'pdf', duration: '2 MB', isPremium: true, url: '#' },
-                    { id: 'l5', title: 'Module 1 Assessment', type: 'quiz', duration: '10 Qs', isPremium: true }
+                    {
+                        id: 'mod1', title: 'Module 1: The Basics',
+                        items: [
+                            { id: 'l1', title: 'Introduction to Python', type: 'video', duration: '10 mins', isPremium: false, url: 'https://www.youtube.com/embed/kqtD5dpn9C8' },
+                            { id: 'l2', title: 'Variables & Data Types', type: 'note', duration: '5 mins', isPremium: false, content: '<p>Variables are containers for storing data values. In Python, a variable is created the moment you first assign a value to it.</p><pre class="bg-gray-800 text-white p-3 rounded mt-2">x = 5\ny = "Hello, World!"</pre>' }
+                        ]
+                    },
+                    {
+                        id: 'mod2', title: 'Module 2: Advanced & Assessment',
+                        items: [
+                            { id: 'l3', title: 'Advanced OOP Concepts', type: 'video', duration: '25 mins', isPremium: true, url: 'https://www.youtube.com/embed/JeznW_7DlB0' },
+                            { id: 'l4', title: 'Python Cheat Sheet', type: 'pdf', duration: '2 MB', isPremium: true, url: '#' },
+                            { id: 'l5', title: 'Module 1 Assessment', type: 'quiz', duration: '10 Qs', isPremium: true }
+                        ]
+                    }
                 ]
             },
             { id: 'c2', title: 'JavaScript Mastery', icon: 'ph-file-js', color: 'text-yellow-500', bg: 'bg-yellow-100 dark:bg-yellow-900/30', progress: 10, lessons: 20, price: 349, syllabus: [
-                { id: 'l21', title: 'JS Basics', type: 'video', duration: '15 mins', isPremium: false, url: 'https://www.youtube.com/embed/W6NZfCO5SIk' },
-                { id: 'l22', title: 'React Integration', type: 'video', duration: '30 mins', isPremium: true, url: '' }
+                {
+                    id: 'mod21', title: 'Chapter 1: Client Side JS',
+                    items: [
+                        { id: 'l21', title: 'JS Basics', type: 'video', duration: '15 mins', isPremium: false, url: 'https://www.youtube.com/embed/W6NZfCO5SIk' },
+                        { id: 'l22', title: 'React Integration', type: 'video', duration: '30 mins', isPremium: true, url: '' }
+                    ]
+                }
             ] },
             { id: 'c3', title: 'HTML & CSS UI Design', icon: 'ph-file-html', color: 'text-orange-500', bg: 'bg-orange-100 dark:bg-orange-900/30', progress: 100, lessons: 8, price: 199, syllabus: [
-                { id: 'l31', title: 'HTML5 Semantics', type: 'note', duration: '5 mins', isPremium: false, content: 'HTML5 introduces structural tags...' },
-                { id: 'l32', title: 'CSS Flexbox & Grid', type: 'video', duration: '40 mins', isPremium: true, url: '' }
+                {
+                    id: 'mod31', title: 'Chapter 1: Structuring Web Pages',
+                    items: [
+                        { id: 'l31', title: 'HTML5 Semantics', type: 'note', duration: '5 mins', isPremium: false, content: 'HTML5 introduces structural tags...' },
+                        { id: 'l32', title: 'CSS Flexbox & Grid', type: 'video', duration: '40 mins', isPremium: true, url: '' }
+                    ]
+                }
             ] }
         ],
         challenges: [
@@ -166,6 +275,7 @@
         ]
     };
 
+    // --- UTILITIES ---
     const $ = id => document.getElementById(id);
     
     window.getAllCourses = function() {
@@ -194,8 +304,10 @@
         for (let i = 0; i < 60; i++) {
             const confetti = document.createElement('div');
             confetti.className = 'confetti-piece';
-            confetti.style.left = Math.random() * 100 + 'vw'; confetti.style.top = '-20px';
-            confetti.style.width = Math.random() * 8 + 6 + 'px'; confetti.style.height = Math.random() * 8 + 6 + 'px';
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.top = '-20px';
+            confetti.style.width = Math.random() * 8 + 6 + 'px';
+            confetti.style.height = Math.random() * 8 + 6 + 'px';
             confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
             confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
             confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
@@ -584,7 +696,7 @@
                         <p class="text-blue-100 text-sm md:text-base flex items-center gap-2">Welcome back, 
                             ${AppState.user.isAdmin ? '<span class="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded font-bold tracking-wider">ADMIN</span>' : ''}
                             ${AppState.user.isTeacher ? '<span class="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded font-bold tracking-wider">INSTRUCTOR</span>' : ''}
-                            ${AppState.user.isPro ? '<span class="bg-yellow-400 text-yellow-900 text-[10px] px-2 py-0.5 rounded font-bold tracking-wider">PRO</span>' : ''}
+                            ${AppState.user.isPro && !AppState.user.isAdmin && !AppState.user.isTeacher ? '<span class="bg-yellow-400 text-yellow-900 text-[10px] px-2 py-0.5 rounded font-bold tracking-wider">PRO</span>' : ''}
                         </p>
                         <h1 class="text-2xl md:text-4xl font-bold">${AppState.user.name} 👋</h1>
                     </div>
@@ -643,16 +755,22 @@
     }
 
     function renderCourses() {
-        let coursesHtml = window.getAllCourses().map(course => `
+        let coursesHtml = window.getAllCourses().map(course => {
+            // Count total lessons across all folders
+            let totalLessons = 0;
+            (course.syllabus || []).forEach(f => totalLessons += (f.items?.length || 0));
+
+            return `
             <div onclick="navigate('courseDetail', {courseId: '${course.id}'})" class="bg-white dark:bg-darkCard p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md hover:-translate-y-1 flex items-center gap-4 cursor-pointer active:scale-95 transition-all">
                 <div class="w-16 h-16 rounded-xl ${course.bg} flex items-center justify-center ${course.color} shrink-0"><i class="ph-fill ${course.icon} text-3xl"></i></div>
                 <div class="flex-1 min-w-0">
                     <h3 class="font-bold text-lg leading-tight mb-1 truncate">${course.title}</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">${course.lessons || (course.syllabus?.length || 0)} Lessons</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">${course.lessons || totalLessons} Lessons</p>
                     <div class="flex items-center gap-2"><div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width: ${course.progress || 0}%"></div></div><span class="text-xs font-bold text-gray-600 dark:text-gray-300">${course.progress || 0}%</span></div>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
         return `
         <div class="flex flex-col h-full animate-fade-in bg-gray-50 dark:bg-[#0f172a] pb-24 md:pb-8 w-full">
@@ -681,34 +799,45 @@
         const isUnlocked = hasCourseAccess(courseId);
         const isPending = AppState.user?.pendingCourses?.includes(courseId) && !isUnlocked;
         
-        let syllabusHtml = (course.syllabus || []).map((item) => {
-            const isLocked = item.isPremium && !isUnlocked;
-            const icon = item.type === 'video' ? 'ph-play-circle' : item.type === 'pdf' ? 'ph-file-pdf' : item.type === 'quiz' ? 'ph-exam' : 'ph-article';
-            return `
-            <div onclick="${isLocked ? "navigate('upgrade', {courseId: '" + course.id + "'})" : `Maps('lesson', {lessonId: '${item.id}'})`}" class="bg-white dark:bg-darkCard p-4 md:p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md active:scale-95 transition-all ${isLocked ? 'opacity-70' : ''}">
-                <div class="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full ${isLocked ? 'bg-gray-100 dark:bg-gray-800 text-gray-400' : 'bg-primary/10 text-primary'} flex items-center justify-center font-bold text-lg">
-                    ${isLocked ? '<i class="ph-fill ph-lock-key text-xl"></i>' : `<i class="ph-fill ${icon} text-xl md:text-2xl"></i>`}
-                </div>
-                <div class="flex-1">
-                    <h3 class="font-bold md:text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                        ${item.title}
-                        ${item.isPremium ? '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">PREMIUM</span>' : '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">FREE</span>'}
-                    </h3>
-                    <p class="text-xs md:text-sm text-gray-500 mt-0.5">${item.duration || 'N/A'} • ${item.type.toUpperCase()}</p>
-                </div>
-                <i class="ph ph-caret-right text-gray-400 text-xl md:text-2xl"></i>
-            </div>`;
-        }).join('');
+        let syllabusHtml = '';
+        let firstLessonId = null;
+
+        (course.syllabus || []).forEach((folder) => {
+            syllabusHtml += `<h4 class="font-bold text-gray-500 uppercase tracking-wider text-xs mb-3 mt-6 ml-2">${folder.title}</h4>`;
+            
+            syllabusHtml += (folder.items || []).map((item) => {
+                if (!firstLessonId) firstLessonId = item.id;
+                const isLocked = item.isPremium && !isUnlocked;
+                const icon = item.type === 'video' ? 'ph-play-circle' : item.type === 'pdf' ? 'ph-file-pdf' : item.type === 'quiz' ? 'ph-exam' : 'ph-article';
+                return `
+                <div onclick="${isLocked ? "navigate('upgrade', {courseId: '" + course.id + "'})" : `Maps('lesson', {lessonId: '${item.id}'})`}" class="bg-white dark:bg-darkCard p-4 md:p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 cursor-pointer hover:shadow-md active:scale-95 transition-all ${isLocked ? 'opacity-70' : 'mb-3'}">
+                    <div class="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full ${isLocked ? 'bg-gray-100 dark:bg-gray-800 text-gray-400' : 'bg-primary/10 text-primary'} flex items-center justify-center font-bold text-lg">
+                        ${isLocked ? '<i class="ph-fill ph-lock-key text-xl"></i>' : `<i class="ph-fill ${icon} text-xl md:text-2xl"></i>`}
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold md:text-lg text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            ${item.title}
+                            ${item.isPremium ? '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">PREMIUM</span>' : '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">FREE</span>'}
+                        </h3>
+                        <p class="text-xs md:text-sm text-gray-500 mt-0.5">${item.duration || 'N/A'} • ${item.type.toUpperCase()}</p>
+                    </div>
+                    <i class="ph ph-caret-right text-gray-400 text-xl md:text-2xl"></i>
+                </div>`;
+            }).join('');
+        });
 
         if(syllabusHtml === '') syllabusHtml = '<p class="text-gray-500 text-center py-4">Syllabus coming soon...</p>';
 
+        let hasPremium = false;
+        (course.syllabus || []).forEach(f => { if((f.items||[]).some(l => l.isPremium)) hasPremium = true; });
+
         let headerButtons = '';
-        if (isUnlocked || !(course.syllabus || []).some(l => l.isPremium)) {
-            headerButtons = `<button onclick="navigate('lesson', {lessonId: '${course.syllabus?.[0]?.id}'})" class="px-8 py-3 md:py-4 md:text-lg gradient-bg text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all w-full max-w-xs md:max-w-sm">Continue Learning</button>`;
+        if (isUnlocked || !hasPremium) {
+            headerButtons = `<button onclick="navigate('lesson', {lessonId: '${firstLessonId}'})" class="px-8 py-3 md:py-4 md:text-lg gradient-bg text-white font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all w-full max-w-xs md:max-w-sm">Continue Learning</button>`;
         } else if (isPending) {
-            headerButtons = `<div class="flex gap-3 w-full max-w-sm md:max-w-md"><button onclick="navigate('lesson', {lessonId: '${course.syllabus?.[0]?.id}'})" class="flex-1 py-3 bg-white/20 text-white font-bold rounded-xl active:scale-95">Try Free</button><button onclick="navigate('upgrade', {courseId: '${course.id}'})" class="flex-1 py-3 bg-orange-500 text-white font-bold rounded-xl shadow-lg active:scale-95 flex justify-center items-center gap-2"><i class="ph-fill ph-clock"></i> Pending...</button></div>`;
+            headerButtons = `<div class="flex gap-3 w-full max-w-sm md:max-w-md"><button onclick="navigate('lesson', {lessonId: '${firstLessonId}'})" class="flex-1 py-3 bg-white/20 text-white font-bold rounded-xl active:scale-95">Try Free</button><button onclick="navigate('upgrade', {courseId: '${course.id}'})" class="flex-1 py-3 bg-orange-500 text-white font-bold rounded-xl shadow-lg active:scale-95 flex justify-center items-center gap-2"><i class="ph-fill ph-clock"></i> Pending...</button></div>`;
         } else {
-            headerButtons = `<div class="flex gap-3 w-full max-w-sm md:max-w-md"><button onclick="navigate('lesson', {lessonId: '${course.syllabus?.[0]?.id}'})" class="flex-1 py-3 bg-white/20 text-white font-bold rounded-xl active:scale-95">Try Free</button><button onclick="navigate('upgrade', {courseId: '${course.id}'})" class="flex-1 py-3 bg-white text-primary font-bold rounded-xl shadow-lg active:scale-95 flex justify-center items-center gap-2"><i class="ph-fill ph-lock-key-open"></i> Buy ₹${course.price}</button></div>`;
+            headerButtons = `<div class="flex gap-3 w-full max-w-sm md:max-w-md"><button onclick="navigate('lesson', {lessonId: '${firstLessonId}'})" class="flex-1 py-3 bg-white/20 text-white font-bold rounded-xl active:scale-95">Try Free</button><button onclick="navigate('upgrade', {courseId: '${course.id}'})" class="flex-1 py-3 bg-white text-primary font-bold rounded-xl shadow-lg active:scale-95 flex justify-center items-center gap-2"><i class="ph-fill ph-lock-key-open"></i> Buy ₹${course.price}</button></div>`;
         }
 
         return `
@@ -722,7 +851,7 @@
                     ${headerButtons}
                 </div>
             </div>
-            <div class="p-6 max-w-3xl mx-auto mt-4"><h2 class="text-xl font-bold mb-4">Syllabus</h2><div class="space-y-4">${syllabusHtml}</div></div>
+            <div class="p-6 max-w-3xl mx-auto mt-4"><h2 class="text-xl font-bold mb-4">Syllabus</h2><div class="space-y-2">${syllabusHtml}</div></div>
         </div>`;
     }
 
@@ -811,11 +940,15 @@
     function renderLesson() {
         const courseId = AppState.currentCourseId || 'c1';
         const course = window.getAllCourses().find(c => c.id === courseId) || window.getAllCourses()[0];
-        const lesson = (course.syllabus || []).find(l => l.id === AppState.currentLessonId) || course.syllabus[0];
+        
+        let allLessons = [];
+        (course.syllabus || []).forEach(f => { if(f.items) allLessons.push(...f.items); });
+
+        const lesson = allLessons.find(l => l.id === AppState.currentLessonId) || allLessons[0];
 
         const isUnlocked = hasCourseAccess(courseId);
         
-        if (lesson.isPremium && !isUnlocked) {
+        if (lesson && lesson.isPremium && !isUnlocked) {
             return `
             <div class="flex flex-col h-full items-center justify-center p-6 bg-gray-50 dark:bg-dark text-center">
                 <div class="w-24 h-24 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-500 mb-6"><i class="ph-fill ph-lock-key text-5xl"></i></div>
@@ -825,6 +958,8 @@
                 <button onclick="navigate('courseDetail')" class="mt-4 text-gray-500 font-bold hover:underline">Go Back</button>
             </div>`;
         }
+
+        if (!lesson) return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Lesson not found</h1><button onclick="navigate('courseDetail')" class="mt-4 text-primary underline">Back to Course</button></div>`;
 
         let contentArea = '';
         if (lesson.type === 'video') {
@@ -930,7 +1065,6 @@
         }, 800);
     }
 
-    // Records completion & pushes score to teacher dashboard
     window.finishLesson = async function() {
         if(AppState.user && db) {
             const userRef = doc(db, 'artifacts', appId, 'users', AppState.user.uid, 'profile', 'main');
@@ -944,9 +1078,10 @@
             const userRef = doc(db, 'artifacts', appId, 'users', AppState.user.uid, 'profile', 'main');
             await updateDoc(userRef, { points: AppState.user.points + score });
             
-            // Record to Public Analytics for Teachers
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'student_scores'), {
                 studentName: AppState.user.name,
+                studentEmail: AppState.user.email,
+                studentPhone: AppState.user.phone || 'N/A',
                 studentId: AppState.user.studentId,
                 courseId: AppState.currentCourseId || 'Global Task',
                 lessonId: AppState.currentLessonId || 'General Code',
@@ -1007,7 +1142,7 @@
             <div class="bg-white dark:bg-darkCard p-4 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg ${course.bg} flex items-center justify-center ${course.color}"><i class="ph-fill ${course.icon} text-xl"></i></div>
-                    <div><h4 class="font-bold text-sm">${course.title}</h4><p class="text-xs text-gray-500">${course.syllabus?.length || 0} Lessons • ₹${course.price}</p></div>
+                    <div><h4 class="font-bold text-sm">${course.title}</h4><p class="text-xs text-gray-500">${course.syllabus?.length || 0} Modules • ₹${course.price}</p></div>
                 </div>
                 <button class="text-primary hover:bg-primary/10 p-2 rounded transition-colors"><i class="ph ph-pencil-simple"></i></button>
             </div>
@@ -1045,17 +1180,34 @@
 
     function renderCourseBuilder() {
         const c = AppState.editingCourse;
-        let syllabusHtml = c.syllabus.map((item, i) => `
-            <div class="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 flex justify-between items-center mb-2">
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-gray-500 w-4">${i+1}.</span>
-                    <i class="ph-fill ${item.type==='video'?'ph-play-circle':item.type==='note'?'ph-article':item.type==='pdf'?'ph-file-pdf':'ph-exam'} text-primary text-xl"></i>
-                    <div>
-                        <p class="font-bold text-sm leading-tight">${item.title} ${item.isPremium ? '<span class="text-[10px] text-yellow-600 bg-yellow-100 px-1 rounded ml-1">PRO</span>':''}</p>
-                        <p class="text-xs text-gray-500 uppercase tracking-wide">${item.type}</p>
-                    </div>
+        let syllabusHtml = c.syllabus.map((folder, fIndex) => `
+            <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 mb-4">
+                <div class="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+                    <h4 class="font-bold text-primary flex items-center gap-2"><i class="ph-fill ph-folder"></i> ${folder.title}</h4>
+                    <button class="text-red-500 hover:bg-red-100 p-1 rounded transition-colors" onclick="AppState.editingCourse.syllabus.splice(${fIndex}, 1); renderApp();"><i class="ph ph-trash"></i></button>
                 </div>
-                <button class="text-red-500 p-1 hover:bg-red-50 rounded" onclick="AppState.editingCourse.syllabus.splice(${i}, 1); renderApp();"><i class="ph ph-trash"></i></button>
+                <div class="space-y-2 mb-4 pl-2">
+                    ${(folder.items || []).map((item, iIndex) => `
+                        <div class="bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-700 flex justify-between items-center shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <i class="ph-fill ${item.type==='video'?'ph-play-circle':item.type==='note'?'ph-article':item.type==='pdf'?'ph-file-pdf':'ph-exam'} text-gray-500 text-xl"></i>
+                                <div>
+                                    <p class="font-bold text-sm leading-tight">${item.title} ${item.isPremium ? '<span class="text-[10px] text-yellow-600 bg-yellow-100 px-1 rounded ml-1">PRO</span>':''}</p>
+                                    <p class="text-xs text-gray-500 uppercase tracking-wide">${item.type}</p>
+                                </div>
+                            </div>
+                            <button class="text-red-500 p-1 hover:bg-red-50 rounded" onclick="AppState.editingCourse.syllabus[${fIndex}].items.splice(${iIndex}, 1); renderApp();"><i class="ph ph-trash"></i></button>
+                        </div>
+                    `).join('') || '<p class="text-xs text-gray-400 italic py-2">No items inside this folder.</p>'}
+                </div>
+                
+                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Add Content to Folder</p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <button onclick="addSyllabusItem(${fIndex}, 'video')" class="py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 font-medium rounded-lg text-xs flex justify-center items-center gap-1 hover:bg-blue-100 active:scale-95"><i class="ph-fill ph-video-camera"></i> + Video</button>
+                    <button onclick="addSyllabusItem(${fIndex}, 'note')" class="py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 font-medium rounded-lg text-xs flex justify-center items-center gap-1 hover:bg-purple-100 active:scale-95"><i class="ph-fill ph-article"></i> + Note</button>
+                    <button onclick="addSyllabusItem(${fIndex}, 'pdf')" class="py-2 bg-red-50 dark:bg-red-900/20 text-red-600 font-medium rounded-lg text-xs flex justify-center items-center gap-1 hover:bg-red-100 active:scale-95"><i class="ph-fill ph-file-pdf"></i> + PDF</button>
+                    <button onclick="addSyllabusItem(${fIndex}, 'quiz')" class="py-2 bg-green-50 dark:bg-green-900/20 text-green-600 font-medium rounded-lg text-xs flex justify-center items-center gap-1 hover:bg-green-100 active:scale-95"><i class="ph-fill ph-exam"></i> + Quiz</button>
+                </div>
             </div>
         `).join('');
 
@@ -1079,22 +1231,26 @@
 
                 <!-- Syllabus Builder -->
                 <div class="bg-white dark:bg-darkCard rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
-                    <h3 class="font-bold border-b border-gray-100 dark:border-gray-700 pb-2 mb-4">2. Build Syllabus</h3>
-                    ${syllabusHtml || '<p class="text-sm text-gray-400 italic mb-4">No lessons added yet.</p>'}
-                    
-                    <p class="text-xs font-bold text-gray-500 mb-2 mt-4 uppercase">Add New Content</p>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <button onclick="addSyllabusItem('video')" class="py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 font-medium rounded-lg text-sm flex justify-center items-center gap-1 active:scale-95"><i class="ph-fill ph-video-camera"></i> Video</button>
-                        <button onclick="addSyllabusItem('note')" class="py-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 font-medium rounded-lg text-sm flex justify-center items-center gap-1 active:scale-95"><i class="ph-fill ph-article"></i> Note</button>
-                        <button onclick="addSyllabusItem('pdf')" class="py-2 bg-red-50 dark:bg-red-900/20 text-red-600 font-medium rounded-lg text-sm flex justify-center items-center gap-1 active:scale-95"><i class="ph-fill ph-file-pdf"></i> PDF</button>
-                        <button onclick="addSyllabusItem('quiz')" class="py-2 bg-green-50 dark:bg-green-900/20 text-green-600 font-medium rounded-lg text-sm flex justify-center items-center gap-1 active:scale-95"><i class="ph-fill ph-exam"></i> Quiz</button>
+                    <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2 mb-4">
+                        <h3 class="font-bold">2. Build Syllabus Folders</h3>
+                        <button onclick="addSyllabusFolder()" class="text-sm font-bold text-primary hover:underline flex items-center gap-1"><i class="ph-bold ph-plus"></i> New Folder</button>
                     </div>
+                    
+                    ${syllabusHtml || '<p class="text-sm text-gray-400 italic mb-4">No folders created yet. Click "New Folder" to begin.</p>'}
                 </div>
             </div>
         </div>`;
     }
 
-    window.addSyllabusItem = function(type) {
+    window.addSyllabusFolder = function() {
+        let title = prompt("Enter Folder/Module Name (e.g., 'Week 1: Basics'):");
+        if(title) {
+            AppState.editingCourse.syllabus.push({ id: 'mod_' + Date.now(), title: title, items: [] });
+            renderApp();
+        }
+    }
+
+    window.addSyllabusItem = function(folderIndex, type) {
         let title = prompt(`Enter Title for this ${type.toUpperCase()}:`);
         if (!title) return;
         let isPremium = confirm('Is this a PREMIUM (Paid) lesson?\n\nClick OK for Premium.\nClick Cancel for Free.');
@@ -1105,7 +1261,7 @@
         else if (type === 'pdf') { item.url = prompt('Enter PDF Link URL:') || '#'; item.duration = prompt('File Size (e.g., 2 MB):') || '1 MB'; }
         else if (type === 'quiz') item.duration = prompt('Number of questions:') || '10 Qs';
 
-        AppState.editingCourse.syllabus.push(item);
+        AppState.editingCourse.syllabus[folderIndex].items.push(item);
         renderApp();
     }
 
@@ -1124,13 +1280,21 @@
     function renderStudentAnalytics() {
         let tableRows = AppState.studentScores.map(score => `
             <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <td class="py-3 px-4 font-medium text-sm">${score.studentName} <span class="block text-[10px] text-gray-500 font-normal">${score.studentId}</span></td>
-                <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">${score.courseId}</td>
-                <td class="py-3 px-4 text-right font-bold text-${score.score > 70 ? 'green' : 'orange'}-500">${score.score}/100</td>
+                <td class="py-4 px-4 font-medium text-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">${score.studentName.charAt(0)}</div>
+                        <div>
+                            ${score.studentName} <span class="text-gray-500 text-xs ml-1">(${score.studentId})</span>
+                            <p class="text-[11px] text-gray-500 mt-0.5">${score.studentEmail} • ${score.studentPhone}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-4 px-4 text-sm text-gray-600 dark:text-gray-400 font-mono">${score.courseId}</td>
+                <td class="py-4 px-4 text-right font-bold text-${score.score >= 70 ? 'green' : 'orange'}-500 text-lg">${score.score}%</td>
             </tr>
         `).join('');
 
-        if(!tableRows) tableRows = `<tr><td colspan="3" class="text-center py-8 text-gray-500 text-sm">No student activity logged yet.</td></tr>`;
+        if(!tableRows) tableRows = `<tr><td colspan="3" class="text-center py-10 text-gray-500 text-sm italic">No student activity logged yet.</td></tr>`;
 
         return `
         <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full">
@@ -1138,15 +1302,15 @@
                 <button onclick="navigate('teacherDashboard')" class="p-2 active:scale-95 hover:bg-green-700 rounded-lg transition-colors"><i class="ph ph-arrow-left text-2xl"></i></button>
                 <h1 class="text-xl font-bold flex-1 pr-12">Student Analytics</h1>
             </div>
-            <div class="p-6 max-w-4xl mx-auto">
+            <div class="p-6 max-w-5xl mx-auto">
                 <div class="bg-white dark:bg-darkCard rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
+                        <table class="w-full text-left border-collapse whitespace-nowrap">
                             <thead>
-                                <tr class="bg-gray-50 dark:bg-gray-800 text-gray-500 text-xs uppercase tracking-wider">
-                                    <th class="py-3 px-4 font-bold">Student</th>
+                                <tr class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+                                    <th class="py-3 px-4 font-bold">Student Profile</th>
                                     <th class="py-3 px-4 font-bold">Course ID</th>
-                                    <th class="py-3 px-4 font-bold text-right">Score</th>
+                                    <th class="py-3 px-4 font-bold text-right">Quiz Score</th>
                                 </tr>
                             </thead>
                             <tbody>${tableRows}</tbody>
@@ -1157,11 +1321,10 @@
         </div>`;
     }
 
-    // Include rendering for settings, navigation, empty shells exactly as context
-    // Re-use rendering shells omitted above logically
     function renderSearch() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Search</h1><button onclick="navigate('dashboard')" class="mt-4 text-primary underline">Back</button></div>`; }
     function renderNotifications() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Notifications</h1><button onclick="navigate('dashboard')" class="mt-4 text-primary underline">Back</button></div>`; }
     function renderAchievements() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Achievements</h1><button onclick="navigate('profile')" class="mt-4 text-primary underline">Back</button></div>`; }
+    function renderAdminDashboard() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Admin Panel</h1><p>Active</p><button onclick="navigate('profile')" class="mt-4 text-primary underline">Back</button></div>`; }
 
     // --- INITIALIZATION ---
     async function startApp() {
@@ -1179,7 +1342,7 @@
                 AppState.authReady = true;
                 if (user) {
                     await initializeUserData(user.uid, user);
-                    listenToDynamicData(); // Start listening to Courses, Posts, and Scores
+                    listenToDynamicData(); 
                     if (AppState.currentPage === 'signup') return;
                     if (['login', 'welcome'].includes(AppState.currentPage)) navigate('dashboard');
                 } else {
