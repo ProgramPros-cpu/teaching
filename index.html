@@ -1321,10 +1321,269 @@
         </div>`;
     }
 
-    function renderSearch() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Search</h1><button onclick="navigate('dashboard')" class="mt-4 text-primary underline">Back</button></div>`; }
-    function renderNotifications() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Notifications</h1><button onclick="navigate('dashboard')" class="mt-4 text-primary underline">Back</button></div>`; }
-    function renderAchievements() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Achievements</h1><button onclick="navigate('profile')" class="mt-4 text-primary underline">Back</button></div>`; }
-    function renderAdminDashboard() { return `<div class="p-6 text-center mt-20"><h1 class="text-2xl font-bold">Admin Panel</h1><p>Active</p><button onclick="navigate('profile')" class="mt-4 text-primary underline">Back</button></div>`; }
+    // --- FULLY FLESHED OUT PRODUCTION SCREENS ---
+
+    function renderSearch() {
+        return `
+        <div class="animate-fade-in bg-white dark:bg-dark min-h-full flex flex-col">
+            <div class="p-4 md:p-6 flex gap-3 items-center border-b border-gray-100 dark:border-gray-800 w-full sticky top-0 bg-white/90 backdrop-blur dark:bg-dark/90 z-10">
+                <button onclick="navigate('dashboard')" class="text-gray-500 active:scale-95 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-xl md:text-2xl"></i></button>
+                <div class="flex-1 relative max-w-2xl mx-auto">
+                    <i class="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg md:text-xl"></i>
+                    <input id="search-input" oninput="executeSearch(this.value)" type="text" placeholder="Search courses, lessons, topics..." class="w-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl py-3 md:py-4 pl-12 pr-4 text-sm md:text-base outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner" autofocus>
+                </div>
+            </div>
+            
+            <div class="p-6 md:p-10 flex-1 w-full max-w-3xl mx-auto flex flex-col" id="search-container">
+                <div id="search-suggestions">
+                    <h3 class="text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 md:mb-6">Popular Tags</h3>
+                    <div class="flex flex-wrap gap-2 md:gap-3 mb-12">
+                        <span onclick="$('search-input').value='Python'; executeSearch('Python')" class="px-4 py-2 md:px-5 md:py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl md:rounded-full text-sm md:text-base text-gray-600 dark:text-gray-300 font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Python loops</span>
+                        <span onclick="$('search-input').value='React'; executeSearch('React')" class="px-4 py-2 md:px-5 md:py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl md:rounded-full text-sm md:text-base text-gray-600 dark:text-gray-300 font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">React Hooks</span>
+                        <span onclick="$('search-input').value='HTML'; executeSearch('HTML')" class="px-4 py-2 md:px-5 md:py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl md:rounded-full text-sm md:text-base text-gray-600 dark:text-gray-300 font-medium cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">HTML Elements</span>
+                    </div>
+                    
+                    <div class="text-center text-gray-400 mt-16 md:mt-24">
+                        <i class="ph ph-keyboard text-5xl md:text-7xl mb-4 opacity-30"></i>
+                        <p class="text-sm md:text-base">Type to instantly search all courses...</p>
+                    </div>
+                </div>
+                <div id="search-results" class="space-y-4 w-full flex-1"></div>
+            </div>
+        </div>`;
+    }
+
+    window.executeSearch = function(val) {
+        const query = val.toLowerCase().trim();
+        const sugg = $('search-suggestions');
+        const res = $('search-results');
+        
+        if (!query) {
+            sugg.style.display = 'block';
+            res.innerHTML = '';
+            return;
+        }
+        
+        sugg.style.display = 'none';
+        
+        // Deep search through courses and their inner syllabus folders
+        const courses = window.getAllCourses().filter(c => {
+            const matchTitle = c.title.toLowerCase().includes(query);
+            let matchSyllabus = false;
+            (c.syllabus || []).forEach(f => {
+                if (f.title && f.title.toLowerCase().includes(query)) matchSyllabus = true;
+                (f.items || []).forEach(item => {
+                    if (item.title.toLowerCase().includes(query)) matchSyllabus = true;
+                });
+            });
+            return matchTitle || matchSyllabus;
+        });
+
+        if (courses.length === 0) {
+            res.innerHTML = `
+                <div class="flex flex-col items-center justify-center text-gray-400 mt-20">
+                    <i class="ph ph-magnifying-glass text-6xl mb-4 opacity-30"></i>
+                    <p class="font-medium text-lg">No courses found</p>
+                    <p class="text-sm mt-1">Try searching for something else like "JavaScript".</p>
+                </div>`;
+            return;
+        }
+
+        res.innerHTML = courses.map(course => `
+            <div onclick="navigate('courseDetail', {courseId: '${course.id}'})" class="bg-white dark:bg-darkCard p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md flex items-center gap-4 cursor-pointer active:scale-95 transition-all">
+                <div class="w-14 h-14 rounded-xl ${course.bg} flex items-center justify-center ${course.color} shrink-0"><i class="ph-fill ${course.icon} text-2xl"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-base md:text-lg leading-tight mb-1 truncate">${course.title}</h3>
+                    <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400">₹${course.price} • Click to view</p>
+                </div>
+                <i class="ph ph-caret-right text-gray-400 md:text-xl"></i>
+            </div>
+        `).join('');
+    }
+
+    function renderNotifications() {
+        const hasPending = AppState.user?.pendingCourses?.length > 0;
+        const hasPoints = AppState.user?.points > 0;
+
+        return `
+        <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full">
+            <div class="bg-white dark:bg-darkCard p-4 flex items-center gap-4 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-800 shadow-sm">
+                <button onclick="navigate('dashboard')" class="p-2 text-gray-500 active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-xl md:text-2xl"></i></button>
+                <h1 class="text-xl md:text-2xl font-bold flex-1 text-center pr-8 md:pr-12">Notifications</h1>
+            </div>
+            <div class="p-4 md:p-6 space-y-3 max-w-3xl mx-auto w-full">
+                
+                ${hasPending ? `
+                <div class="bg-orange-50 dark:bg-orange-900/20 p-4 md:p-5 rounded-xl border border-orange-200 dark:border-orange-800 shadow-sm flex gap-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0"><i class="ph-fill ph-clock text-xl md:text-2xl animate-pulse"></i></div>
+                    <div><h4 class="font-bold text-sm md:text-base text-orange-800 dark:text-orange-400">Verification Pending</h4><p class="text-xs md:text-sm text-orange-600 dark:text-orange-300 mt-1 leading-relaxed">Your course payment request is currently being reviewed by an admin.</p><span class="text-[10px] md:text-xs text-orange-500 mt-2 block font-bold">Action Required</span></div>
+                </div>` : ''}
+
+                ${hasPoints ? `
+                <div class="bg-white dark:bg-darkCard p-4 md:p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow flex gap-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-yellow-100 text-yellow-500 flex items-center justify-center shrink-0"><i class="ph-fill ph-star text-xl md:text-2xl"></i></div>
+                    <div><h4 class="font-bold text-sm md:text-base">Points Earned!</h4><p class="text-xs md:text-sm text-gray-500 mt-1 leading-relaxed">You currently have ${AppState.user.points} points stored. Keep going to unlock the Master Badge!</p><span class="text-[10px] md:text-xs text-gray-400 mt-2 block">Recently</span></div>
+                </div>` : ''}
+
+                <div class="bg-white dark:bg-darkCard p-4 md:p-5 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow flex gap-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center shrink-0"><i class="ph-fill ph-hand-waving text-xl md:text-2xl"></i></div>
+                    <div><h4 class="font-bold text-sm md:text-base">Welcome to ProgramPros!</h4><p class="text-xs md:text-sm text-gray-500 mt-1 leading-relaxed">Start your first lesson today and earn your beginner badge. Enjoy learning!</p><span class="text-[10px] md:text-xs text-gray-400 mt-2 block">${AppState.user?.joinDate || 'Just now'}</span></div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function renderAchievements() {
+        const pts = AppState.user?.points || 0;
+        const isPro = AppState.user?.isPro || (AppState.user?.unlockedCourses?.length > 0);
+        
+        // Dynamically compute earned status based on points and account status
+        const computedAchievements = [
+            { icon: 'ph-student', title: 'First Steps', desc: 'Log in and view your profile', earned: true },
+            { icon: 'ph-fire', title: 'Learner', desc: 'Earn your first 20 points', earned: pts >= 20 },
+            { icon: 'ph-medal', title: 'Scholar', desc: 'Reach 100 points', earned: pts >= 100 },
+            { icon: 'ph-trophy', title: 'Master', desc: 'Reach 500 points', earned: pts >= 500 },
+            { icon: 'ph-crown', title: 'Pro Member', desc: 'Unlock a premium course', earned: isPro }
+        ];
+
+        let achHtml = computedAchievements.map(ach => `
+            <div class="bg-white dark:bg-darkCard p-4 md:p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 ${!ach.earned ? 'opacity-50 grayscale' : 'hover:shadow-md transition-shadow'}">
+                <div class="w-14 h-14 md:w-16 md:h-16 rounded-full ${ach.earned ? 'bg-yellow-100 text-yellow-500 dark:bg-yellow-900/30' : 'bg-gray-100 text-gray-400 dark:bg-gray-800'} flex items-center justify-center shadow-inner shrink-0">
+                    <i class="ph-fill ${ach.icon} text-3xl md:text-4xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-gray-900 dark:text-gray-100 md:text-lg">${ach.title}</h3>
+                    <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">${ach.desc}</p>
+                </div>
+                ${ach.earned ? '<i class="ph-fill ph-check-circle text-green-500 text-2xl"></i>' : '<i class="ph-fill ph-lock-key text-gray-300 text-xl"></i>'}
+            </div>
+        `).join('');
+
+        const earnedCount = computedAchievements.filter(a => a.earned).length;
+
+        return `
+        <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full">
+            <div class="bg-white dark:bg-darkCard p-4 flex items-center gap-4 sticky top-0 z-10 border-b border-gray-100 dark:border-gray-800 shadow-sm">
+                <button onclick="navigate('profile')" class="p-2 text-gray-500 active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"><i class="ph ph-arrow-left text-xl md:text-2xl"></i></button>
+                <h1 class="text-xl md:text-2xl font-bold flex-1 text-center pr-8 md:pr-12">Achievements</h1>
+            </div>
+            <div class="p-6 max-w-4xl mx-auto w-full">
+                <!-- Progress Header -->
+                <div class="flex items-center justify-between mb-8 bg-primary/10 rounded-2xl md:rounded-3xl p-5 md:p-6 border border-primary/20 shadow-inner">
+                    <div>
+                        <p class="text-sm md:text-base font-bold text-primary mb-1">Mastery Level</p>
+                        <p class="text-xs md:text-sm text-primary/70">Keep unlocking badges!</p>
+                    </div>
+                    <div class="text-3xl md:text-5xl font-bold text-primary">${earnedCount}<span class="text-xl md:text-3xl text-primary/50">/${computedAchievements.length}</span></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    ${achHtml}
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    function renderAdminDashboard() {
+        return `
+        <div class="animate-fade-in bg-gray-50 dark:bg-[#0f172a] min-h-full">
+            <div class="bg-red-600 p-4 flex items-center gap-4 sticky top-0 z-10 text-white shadow-lg">
+                <button onclick="navigate('profile')" class="p-2 active:scale-95 hover:bg-red-700 rounded-lg transition-colors"><i class="ph ph-arrow-left text-2xl"></i></button>
+                <h1 class="text-xl md:text-2xl font-bold flex-1 pr-12 tracking-wide">Admin Control Panel</h1>
+            </div>
+            
+            <div class="p-6 max-w-3xl mx-auto space-y-8">
+                <!-- Teacher Generation Panel -->
+                <div class="bg-white dark:bg-darkCard rounded-3xl p-6 md:p-8 shadow-md border border-gray-100 dark:border-gray-800">
+                    <h2 class="text-xl md:text-2xl font-bold mb-2 flex items-center gap-2"><i class="ph-fill ph-user-plus text-primary"></i> Create Teacher Account</h2>
+                    <p class="text-sm md:text-base text-gray-500 mb-8">Generate official instructor accounts instantly. Instructors have builder access.</p>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teacher Full Name</label>
+                            <input id="admin-t-name" type="text" placeholder="e.g. John Doe" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 outline-none focus:ring-2 focus:ring-primary/50">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Official Email Prefix</label>
+                            <div class="flex items-center shadow-sm rounded-xl">
+                                <input id="admin-t-email" type="text" placeholder="johndoe" class="w-full p-4 rounded-l-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 border-r-0 outline-none focus:ring-2 focus:ring-primary/50 z-10">
+                                <div class="p-4 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-700 border-l-0 rounded-r-xl text-gray-500 font-medium">@programpros.com</div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex justify-between">
+                                Auto-Generated Password 
+                                <span onclick="$('admin-t-pwd').value = Math.random().toString(36).slice(-8);" class="text-primary text-xs font-bold cursor-pointer hover:underline">Regenerate</span>
+                            </label>
+                            <input id="admin-t-pwd" type="text" value="${Math.random().toString(36).slice(-8)}" class="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 outline-none font-mono tracking-widest font-bold shadow-inner">
+                        </div>
+                        <button id="btn-create-teacher" onclick="adminCreateTeacher()" class="w-full py-4 mt-4 bg-black dark:bg-white text-white dark:text-black md:text-lg font-bold rounded-xl hover:shadow-xl active:scale-95 shadow-lg transition-all">Create & Save Instructor</button>
+                    </div>
+                </div>
+
+                <!-- Admin Instructions -->
+                <div class="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-3xl border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300">
+                    <h3 class="font-bold flex items-center gap-2 mb-2"><i class="ph-fill ph-info"></i> How to Approve Payments</h3>
+                    <p class="text-sm leading-relaxed">To approve a student's UPI payment, open the <b>Firebase Console</b>. Go to <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">Firestore &gt; users &gt; [User ID] &gt; profile &gt; main</code>. Add the Course ID (e.g. "c3") to their <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">unlockedCourses</code> array and save.</p>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    window.adminCreateTeacher = async function() {
+        const name = $('admin-t-name').value.trim();
+        const emailPrefix = $('admin-t-email').value.trim().replace(/\s/g, '').toLowerCase();
+        const pwd = $('admin-t-pwd').value;
+        const fullEmail = `${emailPrefix}@programpros.com`;
+
+        if(!name || !emailPrefix) return showToast('Fill all fields', 'error');
+
+        const btn = $('btn-create-teacher');
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin text-xl"></i> Creating...'; 
+        btn.disabled = true;
+
+        try {
+            // Use a Secondary Firebase App instance so we don't accidentally log out the Admin!
+            if (!window.adminApp) window.adminApp = initializeApp(globalFirebaseConfig, "AdminApp");
+            const adminAuth = getAuth(window.adminApp);
+            
+            const cred = await createUserWithEmailAndPassword(adminAuth, fullEmail, pwd);
+            const newUid = cred.user.uid;
+            
+            // Save teacher profile in DB using Admin's main auth permissions
+            await setDoc(doc(db, 'artifacts', appId, 'users', newUid, 'profile', 'main'), {
+                name: name, 
+                email: fullEmail,
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+                studentId: 'STAFF-' + Math.floor(Math.random() * 90000 + 10000),
+                joinDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                level: 99, 
+                points: 0, 
+                unlockedCourses: [], 
+                pendingCourses: [],
+                isAdmin: false, 
+                isTeacher: true, 
+                isPro: true
+            });
+            
+            // Sign the teacher out of the secondary app instance
+            await signOut(adminAuth);
+            
+            showToast(`Created Instructor ${name} successfully!`, 'success');
+            
+            // Reset form for next creation
+            $('admin-t-name').value = ''; 
+            $('admin-t-email').value = ''; 
+            $('admin-t-pwd').value = Math.random().toString(36).slice(-8);
+        } catch(e) {
+            console.error(e);
+            showToast(e.message.replace('Firebase: ', ''), 'error');
+        }
+        
+        btn.innerHTML = 'Create & Save Instructor'; 
+        btn.disabled = false;
+    }
+
 
     // --- INITIALIZATION ---
     async function startApp() {
