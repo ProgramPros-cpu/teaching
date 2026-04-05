@@ -526,6 +526,34 @@
         }
     };
 
+    window.toggleLike = async function(postId) {
+        if (!AppState.user) return showToast('Please login to like posts', 'info');
+        
+        const postRef = getPubDoc('community_posts', postId);
+        const post = AppState.communityPosts.find(p => p.id === postId);
+        if (!post) return;
+
+        const likedBy = post.likedBy || [];
+        const hasLiked = likedBy.includes(AppState.user.uid);
+
+        try {
+            if (hasLiked) {
+                await updateDoc(postRef, {
+                    likes: Math.max(0, (post.likes || 1) - 1),
+                    likedBy: arrayRemove(AppState.user.uid)
+                });
+            } else {
+                await updateDoc(postRef, {
+                    likes: (post.likes || 0) + 1,
+                    likedBy: arrayUnion(AppState.user.uid)
+                });
+            }
+        } catch (e) {
+            console.error("Like error:", e);
+            showToast("Failed to like post", "error");
+        }
+    };
+
     window.requestPayment = async function(courseId, courseTitle, price) {
         if (!AppState.user) return;
         
@@ -716,6 +744,45 @@
             showToast('Failed to add content', 'error');
         } finally {
             if(btn){ btn.innerHTML = 'Add'; btn.disabled = false; }
+        }
+    };
+
+    window.deleteCourse = async function(courseId) {
+        if (!confirm("Are you sure you want to delete this course? This cannot be undone.")) return;
+        try {
+            await deleteDoc(getPubDoc('courses', courseId));
+            showToast('Course deleted successfully.', 'info');
+        } catch (e) {
+            console.error(e);
+            showToast('Failed to delete course', 'error');
+        }
+    };
+
+    window.copyStudentId = function(idText) {
+        navigator.clipboard.writeText(idText).then(() => {
+            showToast('Student ID Copied!', 'success');
+        }).catch(() => {
+            showToast('Failed to copy', 'error');
+        });
+    };
+
+    window.handleQuizAnswer = function(btnElement, isCorrect) {
+        if (isCorrect) {
+            btnElement.classList.add('border-green-500', 'bg-green-50', 'dark:bg-green-900/20', 'text-green-700', 'dark:text-green-400');
+            btnElement.classList.remove('border-gray-200', 'dark:border-darkBorder');
+            
+            // Re-use the existing completion logic to award points
+            const currentLesson = AppState.currentLessonId;
+            if (currentLesson) markLessonComplete(currentLesson);
+            else {
+                fireConfetti();
+                showToast('Correct! +10 XP', 'success');
+                setTimeout(() => navigate('dashboard'), 1500);
+            }
+        } else {
+            btnElement.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/20', 'text-red-700', 'dark:text-red-400');
+            btnElement.classList.remove('border-gray-200', 'dark:border-darkBorder');
+            showToast('Incorrect, try again!', 'error');
         }
     };
 
@@ -1370,6 +1437,7 @@
                 AppState.communityPosts.map(post => {
                     const date = new Date(post.timestamp).toLocaleDateString(undefined, {month:'short', day:'numeric'});
                     const isOwnerOrAdmin = AppState.user?.uid === post.authorId || AppState.user?.role === 'admin';
+                    const hasLiked = post.likedBy?.includes(AppState.user?.uid);
                     
                     return `
                     <div class="bg-white dark:bg-darkCard rounded-[2rem] p-6 border border-gray-100 dark:border-darkBorder shadow-sm hover:shadow-md transition-shadow relative group">
@@ -1384,7 +1452,9 @@
                         </div>
                         <p class="text-gray-800 dark:text-gray-200 mb-6 whitespace-pre-wrap">${post.content}</p>
                         <div class="flex items-center gap-6 pt-4 border-t border-gray-100 dark:border-darkBorder text-gray-500">
-                            <button class="flex items-center gap-1.5 hover:text-red-500 transition-colors font-medium text-sm"><i class="ph-bold ph-heart"></i> ${post.likes || 0}</button>
+                            <button onclick="toggleLike('${post.id}')" class="flex items-center gap-1.5 ${hasLiked ? 'text-red-500' : 'hover:text-red-500'} transition-colors font-medium text-sm">
+                                <i class="${hasLiked ? 'ph-fill' : 'ph-bold'} ph-heart"></i> ${post.likes || 0}
+                            </button>
                             <button class="flex items-center gap-1.5 hover:text-blue-500 transition-colors font-medium text-sm"><i class="ph-bold ph-chat-circle"></i> Reply</button>
                         </div>
                     </div>
@@ -1591,7 +1661,7 @@
                             
                             <div class="mt-auto flex gap-2">
                                 <button onclick="AppState.selectedCourseForContent = '${course.id}'; AppState.modals.addContent = true; renderApp()" class="flex-1 py-2 bg-primary/10 text-primary font-bold rounded-xl text-sm hover:bg-primary/20 transition-colors">Add Lesson</button>
-                                <button class="w-10 h-10 bg-gray-100 dark:bg-darkBg rounded-xl flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"><i class="ph-bold ph-pencil-simple"></i></button>
+                                <button onclick="deleteCourse('${course.id}')" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center text-red-500 hover:text-red-600 transition-colors" title="Delete Course"><i class="ph-bold ph-trash"></i></button>
                             </div>
                         </div>
                     </div>
@@ -1729,7 +1799,10 @@
                             <img src="${u?.avatar}" class="w-full h-full object-cover">
                         </div>
                         <h3 class="text-2xl font-bold mb-1">${u?.name}</h3>
-                        <p class="text-sm text-primary font-mono font-bold bg-primary/20 px-3 py-1 rounded-lg mb-8">${u?.studentId}</p>
+                        <div class="flex items-center gap-2 mb-8">
+                            <p class="text-sm text-primary font-mono font-bold bg-primary/20 px-3 py-1 rounded-lg">${u?.studentId}</p>
+                            <button onclick="copyStudentId('${u?.studentId}')" class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-darkCard flex items-center justify-center text-gray-500 hover:text-primary transition-colors"><i class="ph-bold ph-copy"></i></button>
+                        </div>
                         
                         <div class="bg-white p-3 rounded-2xl mb-4 shadow-inner">
                             <img src="QR.png" class="w-32 h-32" onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=STUDENT:${u?.studentId}'">
@@ -1864,24 +1937,24 @@ console.log('Hello, World!');" oninput="updateLineNumbers(this)"></textarea>
                 <h2 class="text-2xl md:text-3xl font-bold mb-8 text-gray-900 dark:text-white">How do you declare a constant variable in JavaScript?</h2>
                 
                 <div class="space-y-4">
-                    <button class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-primary focus:border-primary focus:bg-primary/5 dark:focus:bg-primary/10 transition-all text-lg group">
-                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard group-focus:bg-primary group-focus:text-white text-center leading-8 rounded-lg mr-3 transition-colors">A</span> var
+                    <button onclick="handleQuizAnswer(this, false)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
+                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">A</span> var
                     </button>
-                    <button class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-primary focus:border-primary focus:bg-primary/5 dark:focus:bg-primary/10 transition-all text-lg group">
-                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard group-focus:bg-primary group-focus:text-white text-center leading-8 rounded-lg mr-3 transition-colors">B</span> let
+                    <button onclick="handleQuizAnswer(this, false)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
+                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">B</span> let
                     </button>
-                    <button class="w-full p-4 border-2 border-primary rounded-2xl text-left font-medium bg-primary/5 dark:bg-primary/10 transition-all text-lg group">
-                        <span class="inline-block w-8 h-8 bg-primary text-white text-center leading-8 rounded-lg mr-3 transition-colors">C</span> const
+                    <button onclick="handleQuizAnswer(this, true)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
+                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">C</span> const
                     </button>
-                    <button class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-primary focus:border-primary focus:bg-primary/5 dark:focus:bg-primary/10 transition-all text-lg group">
-                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard group-focus:bg-primary group-focus:text-white text-center leading-8 rounded-lg mr-3 transition-colors">D</span> constant
+                    <button onclick="handleQuizAnswer(this, false)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
+                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">D</span> constant
                     </button>
                 </div>
             </div>
 
             <div class="p-4 border-t border-gray-100 dark:border-darkBorder bg-white dark:bg-darkCard flex justify-center sticky bottom-0">
-                <button onclick="showToast('Correct! +10 XP', 'success'); setTimeout(() => navigate('dashboard'), 1500)" class="w-full max-w-2xl py-4 gradient-bg text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all text-lg">
-                    Submit Answer
+                <button onclick="navigate('dashboard')" class="w-full max-w-2xl py-4 bg-gray-200 dark:bg-darkBorder text-gray-600 dark:text-gray-300 font-bold rounded-2xl active:scale-95 transition-all text-lg hover:bg-gray-300 dark:hover:bg-gray-700">
+                    Skip Question
                 </button>
             </div>
         </div>
