@@ -104,7 +104,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc, arrayUnion, query, getDocs, deleteDoc, orderBy, serverTimestamp, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc, arrayUnion, query, getDocs, deleteDoc, orderBy, serverTimestamp, arrayRemove, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- FIREBASE INITIALIZATION & RULES ---
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'programpros-v2-app';
@@ -138,11 +138,13 @@
         paymentRequests: [],
         teacherRequests: [],
         proRequests: [],
+        leaderboard: [],
         currentCourseId: null,
         currentLessonId: null,
         modals: {
             createCourse: false,
-            addContent: false
+            addContent: false,
+            settings: false
         },
         selectedCourseForContent: null,
         selectedContentType: 'video'
@@ -200,6 +202,7 @@
         // Close modals on navigation
         AppState.modals.createCourse = false;
         AppState.modals.addContent = false;
+        AppState.modals.settings = false;
         
         renderApp();
         $('app-root').scrollTo({ top: 0, behavior: 'smooth' });
@@ -292,7 +295,7 @@
             const unsubUser = onSnapshot(userRef, (doc) => {
                 if (doc.exists()) {
                     AppState.user = doc.data();
-                    if (['dashboard', 'profile', 'courseDetail', 'admin', 'teacher'].includes(AppState.currentPage)) {
+                    if (['dashboard', 'profile', 'courseDetail', 'admin', 'teacher'].includes(AppState.currentPage) || AppState.modals.settings) {
                         renderApp();
                     }
                 }
@@ -331,7 +334,17 @@
         }, (error) => console.error("Community sync error:", error));
         unsubscribes.push(unsubPosts);
 
-        // 3. Admin Specific Listeners
+        // 3. Listen to Top Users for Leaderboard
+        const topUsersRef = query(getPubCol('users'), orderBy('points', 'desc'), limit(5));
+        const unsubTopUsers = onSnapshot(topUsersRef, (snapshot) => {
+            const users = [];
+            snapshot.forEach(doc => users.push(doc.data()));
+            AppState.leaderboard = users;
+            if (AppState.currentPage === 'dashboard') renderApp();
+        }, (error) => console.error("Leaderboard sync error:", error));
+        unsubscribes.push(unsubTopUsers);
+
+        // 4. Admin Specific Listeners
         if (AppState.user?.role === 'admin') {
             const paymentsRef = getPubCol('payment_requests');
             const unsubPayments = onSnapshot(paymentsRef, (snapshot) => {
@@ -501,6 +514,15 @@
         }
     };
 
+    window.deleteCommunityPost = async function(postId) {
+        try {
+            await deleteDoc(getPubDoc('community_posts', postId));
+            showToast('Post deleted', 'info');
+        } catch (e) {
+            showToast('Failed to delete post', 'error');
+        }
+    };
+
     window.requestPayment = async function(courseId, courseTitle, price) {
         if (!AppState.user) return;
         
@@ -526,6 +548,39 @@
             console.error(e);
             showToast('Error submitting request.', 'error');
             if(btn) { btn.innerHTML = 'I have completed the payment'; btn.disabled = false; }
+        }
+    };
+
+    // --- USER SETTINGS ACTIONS ---
+    window.saveSettings = async function() {
+        if (!AppState.user) return;
+        
+        const name = $('settings-name').value;
+        const avatar = $('settings-avatar').value;
+        
+        if (!name) return showToast('Name cannot be empty', 'error');
+        
+        const btn = $('btn-save-settings');
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
+        
+        try {
+            await updateDoc(getPubDoc('users', AppState.user.uid), {
+                name: name,
+                avatar: avatar || AppState.user.avatar
+            });
+            
+            // Also update Firebase Auth profile
+            if(auth.currentUser) {
+                await updateProfile(auth.currentUser, { displayName: name, photoURL: avatar });
+            }
+            
+            AppState.modals.settings = false;
+            showToast('Profile updated successfully!', 'success');
+            renderApp();
+        } catch(e) {
+            showToast('Failed to update profile', 'error');
+        } finally {
+            if(btn) { btn.innerHTML = 'Save Changes'; btn.disabled = false; }
         }
     };
 
@@ -723,6 +778,7 @@
         // Append Modals
         if (AppState.modals.createCourse) html += renderCreateCourseModal();
         if (AppState.modals.addContent) html += renderAddContentModal();
+        if (AppState.modals.settings) html += renderSettingsModal();
 
         root.innerHTML = html;
     }
@@ -985,29 +1041,6 @@
 
                 <!-- Side Column -->
                 <div class="flex flex-col gap-6">
-                    <!-- Quick Links -->
-                    <div class="bg-white dark:bg-darkCard rounded-[2rem] p-6 border border-gray-100 dark:border-darkBorder shadow-sm">
-                        <h3 class="font-bold text-lg mb-4">Quick Links</h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="navigate('certificate')" class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 dark:bg-darkBg hover:bg-gray-100 dark:hover:bg-darkBorder transition-colors border border-transparent dark:border-white/5">
-                                <i class="ph-fill ph-certificate text-2xl text-purple-500 mb-2"></i>
-                                <span class="text-xs font-medium">Certificates</span>
-                            </button>
-                            <button onclick="navigate('studentId')" class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 dark:bg-darkBg hover:bg-gray-100 dark:hover:bg-darkBorder transition-colors border border-transparent dark:border-white/5">
-                                <i class="ph-fill ph-identification-card text-2xl text-blue-500 mb-2"></i>
-                                <span class="text-xs font-medium">Digital ID</span>
-                            </button>
-                            <button onclick="navigate('editor')" class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 dark:bg-darkBg hover:bg-gray-100 dark:hover:bg-darkBorder transition-colors border border-transparent dark:border-white/5">
-                                <i class="ph-fill ph-code text-2xl text-green-500 mb-2"></i>
-                                <span class="text-xs font-medium">Code Editor</span>
-                            </button>
-                            <button onclick="navigate('community')" class="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 dark:bg-darkBg hover:bg-gray-100 dark:hover:bg-darkBorder transition-colors border border-transparent dark:border-white/5">
-                                <i class="ph-fill ph-users text-2xl text-orange-500 mb-2"></i>
-                                <span class="text-xs font-medium">Forum</span>
-                            </button>
-                        </div>
-                    </div>
-
                     <!-- Progress Stats -->
                     <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden">
                         <div class="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
@@ -1027,6 +1060,28 @@
                                 </div>
                                 <div class="w-full bg-white/20 rounded-full h-1.5"><div class="bg-white h-1.5 rounded-full" style="width: ${Math.min((u?.completedLessons?.length || 0)*10, 100)}%"></div></div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Learners Leaderboard -->
+                    <div class="bg-white dark:bg-darkCard rounded-[2rem] p-6 border border-gray-100 dark:border-darkBorder shadow-sm flex-1">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="ph-fill ph-trophy text-yellow-500"></i> Top Learners</h3>
+                        <div class="space-y-3">
+                            ${AppState.leaderboard.length === 0 ? '<p class="text-xs text-gray-500">Loading leaderboard...</p>' : 
+                            AppState.leaderboard.map((user, idx) => `
+                                <div class="flex items-center gap-3 p-2 rounded-xl ${user.uid === u?.uid ? 'bg-primary/5 border border-primary/20' : ''}">
+                                    <div class="w-6 text-center font-bold ${idx === 0 ? 'text-yellow-500' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-700' : 'text-gray-400'}">
+                                        ${idx + 1}
+                                    </div>
+                                    <img src="${user.avatar}" class="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-700 object-cover">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-bold truncate">${user.name} ${user.isPro ? '<i class="ph-fill ph-seal-check text-blue-500 text-xs"></i>' : ''}</p>
+                                    </div>
+                                    <div class="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg shrink-0">
+                                        ${user.points} XP
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 </div>
@@ -1311,8 +1366,12 @@
                 ${AppState.communityPosts.length === 0 ? '<div class="text-center text-gray-500 py-10">No posts yet. Be the first to start a discussion!</div>' : 
                 AppState.communityPosts.map(post => {
                     const date = new Date(post.timestamp).toLocaleDateString(undefined, {month:'short', day:'numeric'});
+                    const isOwnerOrAdmin = AppState.user?.uid === post.authorId || AppState.user?.role === 'admin';
+                    
                     return `
-                    <div class="bg-white dark:bg-darkCard rounded-[2rem] p-6 border border-gray-100 dark:border-darkBorder shadow-sm hover:shadow-md transition-shadow">
+                    <div class="bg-white dark:bg-darkCard rounded-[2rem] p-6 border border-gray-100 dark:border-darkBorder shadow-sm hover:shadow-md transition-shadow relative group">
+                        ${isOwnerOrAdmin ? `<button onclick="deleteCommunityPost('${post.id}')" class="absolute top-6 right-6 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><i class="ph-fill ph-trash text-lg"></i></button>` : ''}
+                        
                         <div class="flex items-center gap-3 mb-4">
                             <img src="${post.authorAvatar}" class="w-10 h-10 rounded-full object-cover">
                             <div>
@@ -1413,7 +1472,7 @@
                         </div>
                         `}
                         <div class="pt-4 border-t border-gray-100 dark:border-darkBorder">
-                            <button onclick="showToast('Settings coming soon!', 'info')" class="text-primary font-bold hover:underline flex items-center gap-2"><i class="ph-bold ph-gear"></i> Manage Settings</button>
+                            <button onclick="AppState.modals.settings = true; renderApp()" class="text-primary font-bold hover:underline flex items-center gap-2"><i class="ph-bold ph-gear"></i> Manage Settings</button>
                         </div>
                     </div>
                 </div>
@@ -1617,8 +1676,32 @@
         `;
     }
 
+    function renderSettingsModal() {
+        return `
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div class="bg-white dark:bg-darkCard w-full max-w-lg rounded-[2.5rem] shadow-2xl animate-slide-up border border-gray-100 dark:border-darkBorder overflow-hidden">
+                <div class="p-6 border-b border-gray-100 dark:border-darkBorder flex justify-between items-center bg-gray-50 dark:bg-darkBg">
+                    <h2 class="text-xl font-bold">Profile Settings</h2>
+                    <button onclick="AppState.modals.settings = false; renderApp()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 transition-colors"><i class="ph-bold ph-x text-lg"></i></button>
+                </div>
+                <div class="p-8 space-y-5">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Display Name</label>
+                        <input id="settings-name" type="text" value="${AppState.user?.name || ''}" placeholder="Your name" class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Avatar URL (Optional)</label>
+                        <input id="settings-avatar" type="url" value="${AppState.user?.avatar || ''}" placeholder="https://..." class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                        <p class="text-xs text-gray-500 mt-2">Paste a direct link to an image file.</p>
+                    </div>
+                    <button id="btn-save-settings" onclick="saveSettings()" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-md active:scale-95 transition-all mt-4 text-lg">Save Changes</button>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
     // --- OTHER PAGES (Student ID, Editor, Quiz) ---
-    // (Retained and slightly polished from original)
     function renderStudentId() {
         const u = AppState.user;
         return `
