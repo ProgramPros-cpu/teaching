@@ -383,31 +383,32 @@
             if (snap.empty) {
                 console.log("Seeding initial courses...");
                 const dummyCourses = [
-                    icon: "ph-snake", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30",
-                    teacherName: "ProgramPros", createdAt: Date.now(), lessons: 2,
-                    syllabus: [
-                        { id: generateId(), title: "Introduction to Variables", type: "video", duration: "5 mins", url: "https://www.youtube.com/embed/kqtD5dpn9C8", isPremium: false },
-                        { id: generateId(), title: "Control Flow (If/Else)", type: "note", duration: "10 mins", content: "<h2>If Statements</h2><p>Used for decision making.</p><pre><code>if x > 5:\n  print('Large')</code></pre>", isPremium: true }
-                    ]
-                },
-                {
-                    title: "Web Dev Bootcamp", description: "HTML, CSS, and JS basics.", price: 499,
-                    icon: "ph-browsers", color: "text-purple-500", bg: "bg-purple-100 dark:bg-purple-900/30",
-                    teacherName: "ProgramPros", createdAt: Date.now() - 1000, lessons: 1,
-                    syllabus: [
-                        { id: generateId(), title: "HTML Basics PDF", type: "pdf", duration: "15 mins", url: "#", isPremium: false }
-                    ]
+                    {
+                        title: "Python for Beginners", description: "Start your coding journey with Python.", price: 299,
+                        icon: "ph-snake", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30",
+                        teacherName: "ProgramPros", createdAt: Date.now(), lessons: 2,
+                        syllabus: [
+                            { id: generateId(), title: "Introduction to Variables", type: "video", duration: "5 mins", url: "https://www.youtube.com/embed/kqtD5dpn9C8", isPremium: false },
+                            { id: generateId(), title: "Control Flow (If/Else)", type: "note", duration: "10 mins", content: "<h2>If Statements</h2><p>Used for decision making.</p><pre><code>if x > 5:\n  print('Large')</code></pre>", isPremium: true }
+                        ]
+                    },
+                    {
+                        title: "Web Dev Bootcamp", description: "HTML, CSS, and JS basics.", price: 499,
+                        icon: "ph-browsers", color: "text-purple-500", bg: "bg-purple-100 dark:bg-purple-900/30",
+                        teacherName: "ProgramPros", createdAt: Date.now() - 1000, lessons: 1,
+                        syllabus: [
+                            { id: generateId(), title: "HTML Basics PDF", type: "pdf", duration: "15 mins", url: "#", isPremium: false }
+                        ]
+                    }
+                ];
+                for (let c of dummyCourses) {
+                    await setDoc(doc(coursesRef, generateId()), c);
                 }
-            ];
-            for (let c of dummyCourses) {
-                await setDoc(doc(coursesRef, generateId()), c);
             }
-        }
         } catch (e) {
             console.error("Seed error:", e);
         }
     }
-
 
     // --- AUTH ACTIONS ---
     window.handleAuthAction = async function(action, event) {
