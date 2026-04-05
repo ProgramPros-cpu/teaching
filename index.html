@@ -335,11 +335,10 @@
         unsubscribes.push(unsubPosts);
 
         // 3. Listen to Top Users for Leaderboard
-        const topUsersRef = query(getPubCol('users'), orderBy('points', 'desc'), limit(5));
-        const unsubTopUsers = onSnapshot(topUsersRef, (snapshot) => {
+        const unsubTopUsers = onSnapshot(getPubCol('users'), (snapshot) => {
             const users = [];
             snapshot.forEach(doc => users.push(doc.data()));
-            AppState.leaderboard = users;
+            AppState.leaderboard = users.sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 5);
             if (AppState.currentPage === 'dashboard') renderApp();
         }, (error) => console.error("Leaderboard sync error:", error));
         unsubscribes.push(unsubTopUsers);
@@ -377,13 +376,13 @@
 
     // --- SEEDING DUMMY DATA (Run once if empty) ---
     async function seedInitialCourses() {
+        if (!auth.currentUser) return;
         const coursesRef = getPubCol('courses');
-        const snap = await getDocs(coursesRef);
-        if (snap.empty) {
-            console.log("Seeding initial courses...");
-            const dummyCourses = [
-                {
-                    title: "Python for Beginners", description: "Start your coding journey with Python.", price: 299,
+        try {
+            const snap = await getDocs(coursesRef);
+            if (snap.empty) {
+                console.log("Seeding initial courses...");
+                const dummyCourses = [
                     icon: "ph-snake", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30",
                     teacherName: "ProgramPros", createdAt: Date.now(), lessons: 2,
                     syllabus: [
@@ -403,6 +402,9 @@
             for (let c of dummyCourses) {
                 await setDoc(doc(coursesRef, generateId()), c);
             }
+        }
+        } catch (e) {
+            console.error("Seed error:", e);
         }
     }
 
@@ -1963,6 +1965,7 @@ console.log('Hello, World!');" oninput="updateLineNumbers(this)"></textarea>
         if (user && !user.isAnonymous) {
             // User logged in via Email or Google
             await initializeUserData(user);
+            await seedInitialCourses();
             
             // Redirect from auth pages
             if (['welcome', 'login', 'signup'].includes(AppState.currentPage)) {
@@ -1980,9 +1983,7 @@ console.log('Hello, World!');" oninput="updateLineNumbers(this)"></textarea>
     });
 
     // Start
-    initAuth().then(() => {
-        seedInitialCourses();
-    });
+    initAuth();
 
 </script>
 </body>
