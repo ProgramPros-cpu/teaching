@@ -389,8 +389,9 @@
                 console.log("Seeding initial courses...");
                 const dummyCourses = [
                     {
-                        title: "Python for Beginners", description: "Start your coding journey with Python.", price: 299,
+                        title: "Python for Beginners", description: "Start your coding journey with Python. Master variables, control flow, and functions in this comprehensive guide.", price: 299,
                         icon: "ph-snake", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30",
+                        thumbnail: "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?auto=format&fit=crop&w=800&q=80",
                         teacherName: "ProgramPros", createdAt: Date.now(), lessons: 2,
                         syllabus: [
                             { id: generateId(), title: "Introduction to Variables", type: "video", duration: "5 mins", url: "https://www.youtube.com/embed/kqtD5dpn9C8", isPremium: false },
@@ -398,8 +399,9 @@
                         ]
                     },
                     {
-                        title: "Web Dev Bootcamp", description: "HTML, CSS, and JS basics.", price: 499,
+                        title: "Web Dev Bootcamp", description: "HTML, CSS, and JS basics. Build your very first responsive website from scratch.", price: 499,
                         icon: "ph-browsers", color: "text-purple-500", bg: "bg-purple-100 dark:bg-purple-900/30",
+                        thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80",
                         teacherName: "ProgramPros", createdAt: Date.now() - 1000, lessons: 1,
                         syllabus: [
                             { id: generateId(), title: "HTML Basics PDF", type: "pdf", duration: "15 mins", url: "#", isPremium: false }
@@ -690,6 +692,7 @@
         const title = $('tc-title').value;
         const desc = $('tc-desc').value;
         const price = $('tc-price').value;
+        const thumbnail = $('tc-thumbnail').value;
 
         if(!title || !desc) return showToast('Fill required fields', 'error');
 
@@ -700,6 +703,7 @@
             const courseId = generateId();
             await setDoc(getPubDoc('courses', courseId), {
                 title, description: desc, price: Number(price) || 0,
+                thumbnail: thumbnail || null,
                 teacherId: AppState.user.uid, teacherName: AppState.user.name,
                 icon: "ph-book-open", color: "text-primary", bg: "bg-primary/10",
                 createdAt: Date.now(), lessons: 0, syllabus: []
@@ -881,9 +885,7 @@
 
         return `
             <div class="p-4 lg:p-6 flex items-center justify-center lg:justify-start gap-3 border-b border-gray-100 dark:border-darkBorder">
-                <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/30">
-                    <i class="ph-bold ph-code text-xl"></i>
-                </div>
+                <img src="https://ui-avatars.com/api/?name=P+P&background=4F46E5&color=fff&rounded=true&bold=true&size=128" alt="ProgramPros Logo" class="w-10 h-10 shadow-lg shadow-primary/30 shrink-0">
                 <span class="font-bold text-xl hidden lg:block tracking-tight">ProgramPros</span>
             </div>
             
@@ -953,25 +955,17 @@
             </div>
             
             <div class="flex-1 hidden md:flex items-center justify-center p-8 z-10 relative">
-                <!-- Abstract visual representing coding -->
-                <div class="w-full max-w-md aspect-square relative animate-float">
-                    <div class="absolute inset-0 bg-gradient-to-tr from-primary to-secondary rounded-[3rem] rotate-6 opacity-20 blur-xl"></div>
-                    <div class="absolute inset-0 glass-panel rounded-[3rem] border border-white/20 dark:border-white/10 shadow-2xl overflow-hidden flex flex-col">
-                        <div class="h-10 border-b border-gray-200 dark:border-darkBorder flex items-center px-4 gap-2 bg-white/50 dark:bg-darkBg/50">
+                <div class="w-full max-w-lg aspect-square md:aspect-auto md:h-3/4 rounded-[3rem] overflow-hidden shadow-2xl border border-white/20 dark:border-white/5 relative animate-float">
+                    <img src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1000&q=80" alt="Coding Banner" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                    <div class="absolute bottom-8 left-8 right-8 text-white">
+                        <div class="flex items-center gap-2 mb-3">
                             <div class="w-3 h-3 rounded-full bg-red-400"></div>
                             <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
                             <div class="w-3 h-3 rounded-full bg-green-400"></div>
                         </div>
-                        <div class="p-6 font-mono text-sm sm:text-base text-gray-600 dark:text-gray-300 flex-1 bg-white/30 dark:bg-darkCard/30 leading-relaxed">
-                            <span class="text-secondary">const</span> <span class="text-primary">developer</span> = {<br/>
-                            &nbsp;&nbsp;skills: [<span class="text-green-500">'HTML'</span>, <span class="text-green-500">'JS'</span>],<br/>
-                            &nbsp;&nbsp;level: <span class="text-orange-500">99</span>,<br/>
-                            &nbsp;&nbsp;learn: <span class="text-secondary">function</span>() {<br/>
-                            &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-primary">ProgramPros</span>.start();<br/>
-                            &nbsp;&nbsp;}<br/>
-                            };
-                            <div class="mt-4 w-2 h-5 bg-primary animate-pulse inline-block"></div>
-                        </div>
+                        <h2 class="text-2xl font-bold mb-2">Write Real Code</h2>
+                        <p class="text-white/80">Experience an interactive learning environment directly in your browser.</p>
                     </div>
                 </div>
             </div>
@@ -1068,14 +1062,15 @@
                     <h2 class="text-xl font-bold">Pick up where you left off</h2>
                     ${recentCourse ? `
                     <div onclick="navigate('courseDetail', {courseId: '${recentCourse.id}'})" class="bg-white dark:bg-darkCard rounded-[2rem] p-1 border border-gray-100 dark:border-darkBorder shadow-sm hover:shadow-md cursor-pointer transition-all group overflow-hidden">
-                        <div class="relative h-40 md:h-48 rounded-[1.75rem] ${recentCourse.bg} flex items-center justify-center overflow-hidden">
-                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                            <i class="ph-fill ${recentCourse.icon} text-8xl opacity-20 absolute -right-4 -bottom-4 mix-blend-overlay"></i>
-                            <div class="absolute bottom-4 left-6 right-6 text-white">
+                        <div class="relative h-48 md:h-56 rounded-[1.75rem] flex items-center justify-center overflow-hidden bg-gray-900">
+                            ${recentCourse.thumbnail ? `<img src="${recentCourse.thumbnail}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700">` : `<div class="absolute inset-0 ${recentCourse.bg}"></div><i class="ph-fill ${recentCourse.icon} text-8xl opacity-20 absolute -right-4 -bottom-4 mix-blend-overlay"></i>`}
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                            
+                            <div class="absolute bottom-6 left-6 right-6 text-white">
                                 <span class="text-xs font-bold uppercase tracking-wider bg-white/20 backdrop-blur px-2 py-1 rounded mb-2 inline-block">Course</span>
-                                <h3 class="text-2xl font-bold text-white mb-1 drop-shadow-md">${recentCourse.title}</h3>
+                                <h3 class="text-2xl md:text-3xl font-bold text-white mb-1 drop-shadow-md">${recentCourse.title}</h3>
                             </div>
-                            <div class="absolute top-4 right-4 w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                            <div class="absolute top-6 right-6 w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform">
                                 <i class="ph-fill ph-play text-xl"></i>
                             </div>
                         </div>
@@ -1183,8 +1178,9 @@
 
                     return `
                     <div onclick="navigate('courseDetail', {courseId: '${course.id}'})" class="bg-white dark:bg-darkCard rounded-[2rem] border border-gray-100 dark:border-darkBorder shadow-sm hover:shadow-xl hover:-translate-y-1 cursor-pointer transition-all duration-300 flex flex-col overflow-hidden group">
-                        <div class="h-32 ${course.bg || 'bg-blue-100'} flex items-center justify-center relative overflow-hidden">
-                            <i class="ph-fill ${course.icon || 'ph-book-open'} text-6xl ${course.color || 'text-blue-500'} group-hover:scale-110 transition-transform duration-300 drop-shadow-sm"></i>
+                        <div class="h-40 relative overflow-hidden bg-gray-200 dark:bg-gray-800">
+                            ${course.thumbnail ? `<img src="${course.thumbnail}" alt="${course.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">` : `<div class="w-full h-full ${course.bg || 'bg-blue-100'} flex items-center justify-center"><i class="ph-fill ${course.icon || 'ph-book-open'} text-6xl ${course.color || 'text-blue-500'} group-hover:scale-110 transition-transform duration-300 drop-shadow-sm"></i></div>`}
+                            <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors"></div>
                             ${isUnlocked ? '<div class="absolute top-3 right-3 bg-white/90 backdrop-blur text-green-600 text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm"><i class="ph-fill ph-check-circle"></i> Owned</div>' : ''}
                         </div>
                         <div class="p-5 flex flex-col flex-1">
@@ -1230,17 +1226,21 @@
         return `
         <div class="animate-fade-in w-full h-full flex flex-col">
             <!-- Hero -->
-            <div class="${course.bg || 'bg-primary/10'} relative pt-12 pb-16 px-6 md:px-12 shrink-0">
-                <button onclick="navigate('courses')" class="absolute top-6 left-6 w-10 h-10 bg-white/50 dark:bg-darkBg/50 hover:bg-white dark:hover:bg-darkBg backdrop-blur rounded-full flex items-center justify-center transition-all z-10"><i class="ph-bold ph-arrow-left"></i></button>
+            <div class="relative pt-12 pb-16 px-6 md:px-12 shrink-0 overflow-hidden bg-gray-900">
+                ${course.thumbnail ? `<img src="${course.thumbnail}" class="absolute inset-0 w-full h-full object-cover opacity-40">` : `<div class="absolute inset-0 ${course.bg || 'bg-primary/10'}"></div>`}
+                <div class="absolute inset-0 bg-gradient-to-t from-gray-50 dark:from-darkBg to-transparent"></div>
                 
-                <div class="max-w-4xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-8 relative z-10">
+                <button onclick="navigate('courses')" class="absolute top-6 left-6 w-10 h-10 bg-white/50 dark:bg-darkBg/50 hover:bg-white dark:hover:bg-darkBg backdrop-blur rounded-full flex items-center justify-center transition-all z-20"><i class="ph-bold ph-arrow-left"></i></button>
+                
+                <div class="max-w-4xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-8 relative z-10 mt-8">
+                    ${!course.thumbnail ? `
                     <div class="w-32 h-32 md:w-40 md:h-40 bg-white dark:bg-darkCard rounded-[2rem] flex items-center justify-center shadow-xl shrink-0 rotate-[-5deg] group-hover:rotate-0 transition-transform">
                         <i class="ph-fill ${course.icon} text-6xl md:text-7xl ${course.color}"></i>
-                    </div>
+                    </div>` : ''}
                     <div class="text-center md:text-left flex-1">
-                        <div class="inline-block px-3 py-1 bg-white/50 dark:bg-darkBg/50 backdrop-blur rounded-lg text-xs font-bold uppercase tracking-wider mb-3">${course.teacherName}</div>
-                        <h1 class="text-3xl md:text-5xl font-extrabold mb-3 text-gray-900 dark:text-white tracking-tight">${course.title}</h1>
-                        <p class="text-gray-700 dark:text-gray-300 text-lg mb-6 max-w-xl opacity-90">${course.description}</p>
+                        <div class="inline-block px-3 py-1 bg-black/50 backdrop-blur rounded-lg text-xs font-bold uppercase tracking-wider mb-3 text-white">${course.teacherName}</div>
+                        <h1 class="text-3xl md:text-5xl font-extrabold mb-3 text-gray-900 dark:text-white tracking-tight drop-shadow-md">${course.title}</h1>
+                        <p class="text-gray-800 dark:text-gray-300 text-lg mb-6 max-w-xl opacity-90 drop-shadow-sm font-medium">${course.description}</p>
                         
                         <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
                             ${isUnlocked ? `
@@ -1372,12 +1372,13 @@
             <button onclick="navigate('courseDetail')" class="self-start w-12 h-12 bg-white dark:bg-darkCard rounded-full flex items-center justify-center shadow-sm mb-6 active:scale-95"><i class="ph-bold ph-arrow-left text-xl"></i></button>
             
             <div class="w-full max-w-md bg-white dark:bg-darkCard rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-darkBorder overflow-hidden">
-                <div class="p-8 pb-6 bg-gradient-to-br from-primary to-secondary text-white text-center relative">
-                    <div class="w-16 h-16 mx-auto bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mb-4 shadow-inner">
+                <div class="p-8 pb-6 bg-gradient-to-br from-primary to-secondary text-white text-center relative overflow-hidden">
+                    ${course.thumbnail ? `<img src="${course.thumbnail}" class="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay">` : ''}
+                    <div class="w-16 h-16 mx-auto bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mb-4 shadow-inner relative z-10">
                         <i class="ph-fill ph-crown text-3xl text-yellow-300"></i>
                     </div>
-                    <h2 class="text-2xl font-bold mb-1">Unlock Premium</h2>
-                    <p class="text-white/80 text-sm">${course.title}</p>
+                    <h2 class="text-2xl font-bold mb-1 relative z-10">Unlock Premium</h2>
+                    <p class="text-white/80 text-sm relative z-10">${course.title}</p>
                 </div>
                 
                 <div class="p-8">
@@ -1658,8 +1659,10 @@
                 ${myCourses.length === 0 ? '<div class="col-span-full p-10 bg-white dark:bg-darkCard rounded-[2rem] text-center border border-dashed border-gray-300 dark:border-gray-700 text-gray-500">You haven\'t created any courses yet.</div>' : 
                 myCourses.map(course => `
                     <div class="bg-white dark:bg-darkCard rounded-[2rem] border border-gray-100 dark:border-darkBorder shadow-sm overflow-hidden flex flex-col">
-                        <div class="h-32 ${course.bg} flex items-center justify-center relative">
-                            <i class="ph-fill ${course.icon} text-6xl ${course.color}"></i>
+                        <div class="h-32 ${course.bg} flex items-center justify-center relative overflow-hidden">
+                            ${course.thumbnail ? `<img src="${course.thumbnail}" class="absolute inset-0 w-full h-full object-cover">` : ''}
+                            <i class="ph-fill ${course.icon} text-6xl ${course.color} relative z-10 drop-shadow-md"></i>
+                            <div class="absolute inset-0 bg-black/10"></div>
                         </div>
                         <div class="p-6 flex flex-col flex-1">
                             <h3 class="font-bold text-lg mb-1">${course.title}</h3>
@@ -1695,9 +1698,15 @@
                         <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Description</label>
                         <textarea id="tc-desc" rows="3" class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none resize-none"></textarea>
                     </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Price (₹)</label>
-                        <input id="tc-price" type="number" placeholder="499" class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Price (₹)</label>
+                            <input id="tc-price" type="number" placeholder="499" class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Thumbnail URL (Optional)</label>
+                            <input id="tc-thumbnail" type="url" placeholder="https://..." class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                        </div>
                     </div>
                     <button id="btn-create-course" onclick="teacherCreateCourse()" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-md active:scale-95 transition-all mt-4 text-lg">Create</button>
                 </div>
@@ -1838,7 +1847,7 @@
                             <div class="absolute inset-0 opacity-5 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIj48L3JlY3Q+CjxwYXRoIGQ9Ik0wIDBMODggWk04IDBMMCA4IFoiIHN0cm9rZT0iI2YwZjBmMCIgc3Ryb2tlLXdpZHRoPSIxIj48L3BhdGg+Cjwvc3ZnPg==')] bg-repeat"></div>
                             
                             <div class="flex items-center gap-3 mb-6 relative z-10">
-                                <i class="ph-fill ph-code text-5xl text-[#1e3a8a]"></i>
+                                <img src="https://ui-avatars.com/api/?name=P+P&background=1e3a8a&color=fff&rounded=true&bold=true&size=64" alt="ProgramPros Logo" class="w-12 h-12 shadow-sm">
                                 <span class="font-bold text-3xl text-[#1e3a8a] tracking-tight">ProgramPros</span>
                             </div>
                             
