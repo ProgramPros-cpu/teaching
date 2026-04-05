@@ -1,0 +1,1 @@
+User can sent requiest for Upgrade their account and then admin set that specific account pro="true". after that user's app changes the color to a luxury color and a blue/green verified batch is placed before its name.
