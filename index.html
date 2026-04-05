@@ -18,9 +18,9 @@
                         mono: ['Fira Code', 'monospace']
                     },
                     colors: {
-                        primary: '#4F46E5',
-                        primaryHover: '#4338CA',
-                        secondary: '#9333EA',
+                        primary: 'var(--color-primary, #4F46E5)',
+                        primaryHover: 'var(--color-primary-hover, #4338CA)',
+                        secondary: 'var(--color-secondary, #9333EA)',
                         darkBg: '#0B1120',
                         darkCard: '#1E293B',
                         darkBorder: '#334155'
@@ -137,6 +137,7 @@
         communityPosts: [],
         paymentRequests: [],
         teacherRequests: [],
+        proRequests: [],
         currentCourseId: null,
         currentLessonId: null,
         modals: {
@@ -272,6 +273,7 @@
                     points: 0,
                     unlockedCourses: [],
                     completedLessons: [], // Array of lesson IDs
+                    isPro: false,
                     role: isAdminEmail ? 'admin' : 'student'
                 };
                 await setDoc(userRef, newProfile);
@@ -348,6 +350,15 @@
                 if (AppState.currentPage === 'admin') renderApp();
             });
             unsubscribes.push(unsubTeachers);
+
+            const proRef = getPubCol('pro_requests');
+            const unsubPro = onSnapshot(proRef, (snapshot) => {
+                const reqs = [];
+                snapshot.forEach(doc => reqs.push({ id: doc.id, ...doc.data() }));
+                AppState.proRequests = reqs.filter(r => r.status === 'pending');
+                if (AppState.currentPage === 'admin') renderApp();
+            });
+            unsubscribes.push(unsubPro);
         }
     }
 
@@ -476,6 +487,7 @@
                 authorName: AppState.user.name,
                 authorAvatar: AppState.user.avatar,
                 authorId: AppState.user.uid,
+                authorIsPro: AppState.user.isPro || false,
                 timestamp: Date.now(),
                 likes: 0
             });
@@ -539,6 +551,45 @@
         try {
             await deleteDoc(getPubDoc('payment_requests', reqId));
             showToast('Payment rejected.', 'info');
+        } catch (e) {
+            showToast('Rejection failed.', 'error');
+        }
+    };
+
+    window.requestProUpgrade = async function() {
+        if (!AppState.user) return;
+        const btn = $('btn-request-pro');
+        if(btn) { btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i>'; btn.disabled = true; }
+        try {
+            await addDoc(getPubCol('pro_requests'), {
+                uid: AppState.user.uid,
+                userName: AppState.user.name,
+                userEmail: AppState.user.email,
+                status: 'pending',
+                requestedAt: Date.now()
+            });
+            showToast('Pro upgrade requested!', 'success');
+        } catch (e) {
+            showToast('Failed to request.', 'error');
+        } finally {
+            if(btn) { btn.innerHTML = 'Request Pro Upgrade'; btn.disabled = false; }
+        }
+    };
+
+    window.adminApprovePro = async function(reqId, uid) {
+        try {
+            await updateDoc(getPubDoc('users', uid), { isPro: true });
+            await deleteDoc(getPubDoc('pro_requests', reqId));
+            showToast('User upgraded to Pro!', 'success');
+        } catch (e) {
+            showToast('Failed to upgrade.', 'error');
+        }
+    };
+
+    window.adminRejectPro = async function(reqId) {
+        try {
+            await deleteDoc(getPubDoc('pro_requests', reqId));
+            showToast('Pro request rejected.', 'info');
         } catch (e) {
             showToast('Rejection failed.', 'error');
         }
@@ -621,6 +672,17 @@
             navBar.classList.add('hidden');
             mobileNav.classList.add('hidden');
             return;
+        }
+
+        // Apply Pro Theme Colors
+        if (AppState.user?.isPro) {
+            document.documentElement.style.setProperty('--color-primary', '#d4af37'); // Luxury Gold
+            document.documentElement.style.setProperty('--color-primary-hover', '#b8860b'); // Dark Goldenrod
+            document.documentElement.style.setProperty('--color-secondary', '#ffd700'); // Light Gold
+        } else {
+            document.documentElement.style.setProperty('--color-primary', '#4F46E5');
+            document.documentElement.style.setProperty('--color-primary-hover', '#4338CA');
+            document.documentElement.style.setProperty('--color-secondary', '#9333EA');
         }
 
         // Determine Layout
@@ -853,7 +915,7 @@
             <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
                 <div>
                     <p class="text-gray-500 dark:text-gray-400 mb-1">Welcome back,</p>
-                    <h1 class="text-3xl md:text-4xl font-bold tracking-tight">${u?.name} 👋</h1>
+                    <h1 class="text-3xl md:text-4xl font-bold tracking-tight">${u?.name} ${u?.isPro ? '<i class="ph-fill ph-seal-check text-blue-500 text-3xl" title="Pro Verified"></i>' : ''} 👋</h1>
                 </div>
                 <div class="flex items-center gap-3 bg-white dark:bg-darkCard px-4 py-2 rounded-2xl border border-gray-100 dark:border-darkBorder shadow-sm w-max">
                     <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
@@ -1254,7 +1316,7 @@
                         <div class="flex items-center gap-3 mb-4">
                             <img src="${post.authorAvatar}" class="w-10 h-10 rounded-full object-cover">
                             <div>
-                                <h4 class="font-bold text-sm leading-tight">${post.authorName}</h4>
+                                <h4 class="font-bold text-sm leading-tight flex items-center gap-1">${post.authorName} ${post.authorIsPro ? '<i class="ph-fill ph-seal-check text-blue-500" title="Pro Verified"></i>' : ''}</h4>
                                 <span class="text-xs text-gray-500">${date}</span>
                             </div>
                         </div>
@@ -1284,7 +1346,9 @@
                         <img src="${u?.avatar}" class="w-full h-full object-cover">
                     </div>
                     <div class="flex-1 text-center md:text-left mb-2">
-                        <h1 class="text-3xl font-bold mb-1">${u?.name}</h1>
+                        <h1 class="text-3xl font-bold mb-1 flex items-center justify-center md:justify-start gap-2">
+                            ${u?.name} ${u?.isPro ? '<i class="ph-fill ph-seal-check text-blue-500 text-3xl" title="Pro Verified"></i>' : ''}
+                        </h1>
                         <p class="text-gray-500 flex items-center justify-center md:justify-start gap-2">
                             <i class="ph-fill ph-envelope-simple"></i> ${u?.email}
                         </p>
@@ -1335,6 +1399,19 @@
                             <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Joined On</span>
                             <span class="font-medium">${u?.joinDate}</span>
                         </div>
+                        ${!u?.isPro ? `
+                        <div class="pt-4 border-t border-gray-100 dark:border-darkBorder">
+                            <button id="btn-request-pro" onclick="requestProUpgrade()" class="w-full py-3 bg-gradient-to-r from-[#d4af37] to-[#f59e0b] text-white font-bold rounded-xl shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                                <i class="ph-bold ph-star"></i> Request Pro Upgrade
+                            </button>
+                        </div>
+                        ` : `
+                        <div class="pt-4 border-t border-gray-100 dark:border-darkBorder">
+                            <div class="w-full py-3 bg-gradient-to-r from-[#d4af37]/20 to-[#f59e0b]/20 text-[#d4af37] dark:text-[#ffd700] font-bold rounded-xl flex items-center justify-center gap-2 border border-[#d4af37]/30">
+                                <i class="ph-fill ph-crown text-xl"></i> Pro Account Active
+                            </div>
+                        </div>
+                        `}
                         <div class="pt-4 border-t border-gray-100 dark:border-darkBorder">
                             <button onclick="showToast('Settings coming soon!', 'info')" class="text-primary font-bold hover:underline flex items-center gap-2"><i class="ph-bold ph-gear"></i> Manage Settings</button>
                         </div>
@@ -1375,8 +1452,27 @@
                     </div>
                 </div>
 
-                <!-- Teacher Requests / System Info -->
                 <div class="space-y-8 flex flex-col">
+                    <!-- Pro Requests -->
+                    <div class="bg-white dark:bg-darkCard rounded-[2rem] p-6 border border-gray-100 dark:border-darkBorder shadow-sm flex flex-col max-h-[300px]">
+                        <h2 class="text-xl font-bold mb-4 flex items-center gap-2"><i class="ph-fill ph-star text-yellow-500"></i> Pro Upgrade Requests</h2>
+                        <div class="flex-1 overflow-y-auto space-y-4 pr-2">
+                            ${AppState.proRequests.length === 0 ? '<p class="text-gray-500 text-sm text-center py-4 border border-dashed rounded-xl">No pending pro requests.</p>' : 
+                            AppState.proRequests.map(req => `
+                                <div class="bg-gray-50 dark:bg-darkBg p-4 rounded-2xl border border-gray-200 dark:border-darkBorder flex items-center justify-between gap-4">
+                                    <div class="min-w-0">
+                                        <h4 class="font-bold text-sm truncate">${req.userName}</h4>
+                                        <p class="text-xs text-gray-500 truncate">${req.userEmail}</p>
+                                    </div>
+                                    <div class="flex gap-2 shrink-0">
+                                        <button onclick="adminApprovePro('${req.id}', '${req.uid}')" class="bg-green-500 text-white p-2 rounded-xl hover:bg-green-600 active:scale-95 transition-all"><i class="ph-bold ph-check"></i></button>
+                                        <button onclick="adminRejectPro('${req.id}')" class="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 p-2 rounded-xl hover:bg-red-200 active:scale-95 transition-all"><i class="ph-bold ph-x"></i></button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
                     <div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden shrink-0">
                         <i class="ph-fill ph-shield-check absolute -right-6 -bottom-6 text-9xl text-white/5 mix-blend-overlay"></i>
                         <h3 class="font-bold text-lg mb-1 relative z-10">System Status</h3>
