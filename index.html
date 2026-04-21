@@ -149,9 +149,13 @@
         modals: {
             createCourse: false,
             addContent: false,
-            settings: false
+            settings: false,
+            editCourse: false,
+            videoPlayer: false
         },
         selectedCourseForContent: null,
+        selectedCourseToEdit: null,
+        currentVideoUrl: null,
         selectedContentType: 'video'
     };
 
@@ -214,6 +218,8 @@
         AppState.modals.createCourse = false;
         AppState.modals.addContent = false;
         AppState.modals.settings = false;
+        AppState.modals.editCourse = false;
+        AppState.modals.videoPlayer = false;
         
         renderApp();
         $('app-root').scrollTo({ top: 0, behavior: 'smooth' });
@@ -727,11 +733,49 @@
         } catch (e) { showToast('Rejection failed.', 'error'); }
     };
 
+    window.openEditCourse = function(courseId) {
+        AppState.selectedCourseToEdit = AppState.courses.find(c => c.id === courseId);
+        AppState.modals.editCourse = true;
+        renderApp();
+    };
+
+    window.teacherUpdateCourse = async function() {
+        const course = AppState.selectedCourseToEdit;
+        if (!course) return;
+
+        const title = $('ec-title').value;
+        const desc = $('ec-desc').value;
+        const price = $('ec-price').value;
+        const thumbnail = $('ec-thumbnail').value;
+        const promo = $('ec-promo').value;
+
+        if(!title || !desc) return showToast('Fill required fields', 'error');
+
+        const btn = $('btn-edit-course');
+        btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true;
+
+        try {
+            await updateDoc(getPubDoc('courses', course.id), {
+                title, description: desc, price: Number(price) || 0,
+                thumbnail: thumbnail || null,
+                promoVideoUrl: promo || null
+            });
+            AppState.modals.editCourse = false;
+            showToast('Course updated!');
+            renderApp();
+        } catch(e) {
+            showToast('Update failed', 'error');
+        } finally {
+            if(btn){ btn.innerHTML = 'Save Changes'; btn.disabled = false; }
+        }
+    };
+
     window.teacherCreateCourse = async function() {
         const title = $('tc-title').value;
         const desc = $('tc-desc').value;
         const price = $('tc-price').value;
         const thumbnail = $('tc-thumbnail').value;
+        const promo = $('tc-promo').value;
 
         if(!title || !desc) return showToast('Fill required fields', 'error');
 
@@ -743,6 +787,7 @@
             await setDoc(getPubDoc('courses', courseId), {
                 title, description: desc, price: Number(price) || 0,
                 thumbnail: thumbnail || null,
+                promoVideoUrl: promo || null,
                 teacherId: AppState.user.uid, teacherName: AppState.user.name,
                 icon: "ph-book-open", color: "text-primary", bg: "bg-primary/10",
                 createdAt: Date.now(), lessons: 0, syllabus: []
@@ -885,8 +930,10 @@
         }
         
         if (AppState.modals.createCourse) html += renderCreateCourseModal();
+        if (AppState.modals.editCourse) html += renderEditCourseModal();
         if (AppState.modals.addContent) html += renderAddContentModal();
         if (AppState.modals.settings) html += renderSettingsModal();
+        if (AppState.modals.videoPlayer) html += renderVideoModal();
 
         root.innerHTML = html;
     }
@@ -1282,6 +1329,11 @@
                         <p class="text-gray-800 dark:text-gray-300 text-base md:text-lg mb-6 max-w-xl opacity-90 drop-shadow-sm font-medium mx-auto md:mx-0">${course.description}</p>
                         
                         <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center md:justify-start gap-3 w-full">
+                            ${course.promoVideoUrl ? `
+                                <button onclick="AppState.currentVideoUrl = '${course.promoVideoUrl}'; AppState.modals.videoPlayer = true; renderApp()" class="px-6 py-3.5 sm:py-3 bg-white/20 hover:bg-white/30 backdrop-blur border border-white/30 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 text-base md:text-lg w-full sm:w-auto">
+                                    <i class="ph-fill ph-play-circle text-xl"></i> Watch Trailer
+                                </button>
+                            ` : ''}
                             ${isUnlocked ? `
                                 <div class="bg-white dark:bg-darkCard px-6 py-3 rounded-xl shadow-sm border border-gray-100 dark:border-darkBorder flex items-center gap-4 min-w-[200px]">
                                     <div class="flex-1">
@@ -1734,6 +1786,7 @@
                             
                             <div class="mt-auto flex gap-2">
                                 <button onclick="AppState.selectedCourseForContent = '${course.id}'; AppState.modals.addContent = true; renderApp()" class="flex-1 py-2 bg-primary/10 text-primary font-bold rounded-xl text-sm hover:bg-primary/20 transition-colors">Add Lesson</button>
+                                <button onclick="openEditCourse('${course.id}')" class="w-10 h-10 bg-gray-100 dark:bg-darkBg rounded-xl flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-primary transition-colors" title="Edit Course"><i class="ph-bold ph-pencil-simple"></i></button>
                                 <button onclick="deleteCourse('${course.id}')" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 rounded-xl flex items-center justify-center text-red-500 hover:text-red-600 transition-colors" title="Delete Course"><i class="ph-bold ph-trash"></i></button>
                             </div>
                         </div>
@@ -1771,8 +1824,62 @@
                             <input id="tc-thumbnail" type="url" placeholder="https://..." class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
                         </div>
                     </div>
-                    <button id="btn-create-course" onclick="teacherCreateCourse()" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-md active:scale-95 transition-all mt-4 text-lg">Create</button>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Promo Video URL (Optional Embed)</label>
+                        <input id="tc-promo" type="url" placeholder="https://www.youtube.com/embed/..." class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                    <button id="btn-create-course" onclick="teacherCreateCourse()" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-md active:scale-95 transition-all mt-4 text-lg">Create Course</button>
                 </div>
+            </div>
+        </div>`;
+    }
+
+    function renderEditCourseModal() {
+        const course = AppState.selectedCourseToEdit;
+        if(!course) return '';
+        return `
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div class="bg-white dark:bg-darkCard w-[calc(100%-2rem)] md:w-full max-w-lg rounded-[2rem] shadow-2xl animate-slide-up border border-gray-100 dark:border-darkBorder overflow-hidden flex flex-col max-h-[90dvh]">
+                <div class="p-5 md:p-6 border-b border-gray-100 dark:border-darkBorder flex justify-between items-center bg-gray-50 dark:bg-darkBg shrink-0">
+                    <h2 class="text-xl font-bold">Edit Course</h2>
+                    <button onclick="AppState.modals.editCourse = false; renderApp()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 transition-colors"><i class="ph-bold ph-x text-lg"></i></button>
+                </div>
+                <div class="p-5 md:p-8 space-y-4 md:space-y-5 overflow-y-auto">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Course Title</label>
+                        <input id="ec-title" type="text" value="${course.title || ''}" placeholder="Course title" class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                        <textarea id="ec-desc" rows="3" class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none resize-none">${course.description || ''}</textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Price (₹)</label>
+                            <input id="ec-price" type="number" value="${course.price || 0}" class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Thumbnail URL</label>
+                            <input id="ec-thumbnail" type="url" value="${course.thumbnail || ''}" placeholder="https://..." class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Promo Video URL</label>
+                        <input id="ec-promo" type="url" value="${course.promoVideoUrl || ''}" placeholder="https://www.youtube.com/embed/..." class="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none">
+                    </div>
+                    <button id="btn-edit-course" onclick="teacherUpdateCourse()" class="w-full py-4 gradient-bg text-white font-bold rounded-xl shadow-md active:scale-95 transition-all mt-4 text-lg">Save Changes</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function renderVideoModal() {
+        if(!AppState.currentVideoUrl) return '';
+        return `
+        <div class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 md:p-8 animate-fade-in">
+            <button onclick="AppState.modals.videoPlayer = false; AppState.currentVideoUrl = null; renderApp()" class="absolute top-4 right-4 md:top-8 md:right-8 w-12 h-12 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition-colors z-[110]"><i class="ph-bold ph-x text-2xl"></i></button>
+            <div class="w-full max-w-5xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 animate-slide-up relative">
+                <iframe src="${AppState.currentVideoUrl}?autoplay=1" class="w-full h-full absolute inset-0" frameborder="0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
             </div>
         </div>`;
     }
