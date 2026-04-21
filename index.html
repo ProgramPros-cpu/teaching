@@ -107,7 +107,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc, arrayUnion, query, getDocs, deleteDoc, orderBy, serverTimestamp, arrayRemove, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, updateDoc, addDoc, arrayUnion, query, getDocs, deleteDoc, orderBy, serverTimestamp, arrayRemove, limit, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- FIREBASE INITIALIZATION & RULES ---
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'programpros-v3-app';
@@ -146,6 +146,7 @@
         currentCourseId: null,
         currentLessonId: null,
         currentLessonNotes: '', // Track notes state locally
+        quizState: { active: false, index: 0, score: 0, questions: [], finished: false },
         modals: {
             createCourse: false,
             addContent: false,
@@ -213,6 +214,13 @@
         if (params.lessonId) {
             AppState.currentLessonId = params.lessonId;
             loadPrivateNotes(params.lessonId);
+            
+            // Initialize Quiz State if navigating to a quiz
+            const course = AppState.courses.find(c => c.id === AppState.currentCourseId);
+            const lesson = course?.syllabus?.find(l => l.id === AppState.currentLessonId);
+            if (lesson && lesson.type === 'quiz') {
+                AppState.quizState = { active: true, index: 0, score: 0, questions: lesson.questions || [], finished: false };
+            }
         }
         
         AppState.modals.createCourse = false;
@@ -389,17 +397,21 @@
                         title: "Python for Beginners", description: "Start your coding journey with Python. Master variables, control flow, and functions in this comprehensive guide.", price: 299,
                         icon: "ph-snake", color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30",
                         thumbnail: "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?auto=format&fit=crop&w=800&q=80",
-                        teacherName: "ProgramPros", createdAt: Date.now(), lessons: 2,
+                        teacherName: "ProgramPros", createdAt: Date.now(), lessons: 3, enrollmentCount: 0, reviews: [],
                         syllabus: [
                             { id: generateId(), title: "Introduction to Variables", type: "video", duration: "5 mins", url: "https://www.youtube.com/embed/kqtD5dpn9C8", isPremium: false },
-                            { id: generateId(), title: "Control Flow (If/Else)", type: "note", duration: "10 mins", content: "<h2>If Statements</h2><p>Used for decision making.</p><pre><code>if x > 5:\n  print('Large')</code></pre>", isPremium: true }
+                            { id: generateId(), title: "Control Flow (If/Else)", type: "note", duration: "10 mins", content: "<h2>If Statements</h2><p>Used for decision making.</p><pre><code>if x > 5:\n  print('Large')</code></pre>", isPremium: true },
+                            { id: generateId(), title: "Python Basics Check", type: "quiz", duration: "5 mins", isPremium: true, questions: [
+                                { q: "How do you declare a variable in Python?", options: ["var x = 5", "x = 5", "int x = 5", "let x = 5"], answer: 1 },
+                                { q: "Which of these is a Python data type?", options: ["List", "Array", "Vector", "Collection"], answer: 0 }
+                            ]}
                         ]
                     },
                     {
                         title: "Web Dev Bootcamp", description: "HTML, CSS, and JS basics. Build your very first responsive website from scratch.", price: 499,
                         icon: "ph-browsers", color: "text-purple-500", bg: "bg-purple-100 dark:bg-purple-900/30",
                         thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80",
-                        teacherName: "ProgramPros", createdAt: Date.now() - 1000, lessons: 1,
+                        teacherName: "ProgramPros", createdAt: Date.now() - 1000, lessons: 1, enrollmentCount: 0, reviews: [],
                         syllabus: [
                             { id: generateId(), title: "HTML Basics PDF", type: "pdf", duration: "15 mins", url: "#", isPremium: false }
                         ]
@@ -686,6 +698,7 @@
     window.adminApprovePayment = async function(reqId, uid, courseId) {
         try {
             await updateDoc(getPubDoc('users', uid), { unlockedCourses: arrayUnion(courseId) });
+            await updateDoc(getPubDoc('courses', courseId), { enrollmentCount: increment(1) });
             await deleteDoc(getPubDoc('payment_requests', reqId));
             showToast('Payment approved.', 'success');
         } catch (e) { showToast('Approval failed.', 'error'); }
@@ -790,7 +803,7 @@
                 promoVideoUrl: promo || null,
                 teacherId: AppState.user.uid, teacherName: AppState.user.name,
                 icon: "ph-book-open", color: "text-primary", bg: "bg-primary/10",
-                createdAt: Date.now(), lessons: 0, syllabus: []
+                createdAt: Date.now(), lessons: 0, syllabus: [], enrollmentCount: 0, reviews: []
             });
             AppState.modals.createCourse = false;
             showToast('Course created!');
@@ -813,6 +826,12 @@
         if (type === 'video') contentObj.url = $('tac-url').value || 'https://www.youtube.com/embed/dQw4w9WgXcQ';
         else if (type === 'pdf') contentObj.url = $('tac-pdf').value || '#';
         else if (type === 'note') contentObj.content = $('tac-note').value || 'Empty note.';
+        else if (type === 'quiz') {
+            contentObj.questions = [
+                { q: "Sample Question 1?", options: ["Option A", "Option B", "Option C", "Option D"], answer: 0 },
+                { q: "Sample Question 2?", options: ["True", "False"], answer: 1 }
+            ];
+        }
 
         if(!title) return showToast('Title required', 'error');
 
@@ -853,22 +872,64 @@
         });
     };
 
-    window.handleQuizAnswer = function(btnElement, isCorrect) {
-        if (isCorrect) {
-            btnElement.classList.add('border-green-500', 'bg-green-50', 'dark:bg-green-900/20', 'text-green-700', 'dark:text-green-400');
-            btnElement.classList.remove('border-gray-200', 'dark:border-darkBorder');
-            
-            const currentLesson = AppState.currentLessonId;
-            if (currentLesson) markLessonComplete(currentLesson, 10);
-            else {
-                fireConfetti();
-                showToast('Correct! +10 XP', 'success');
-                setTimeout(() => navigate('dashboard'), 1500);
-            }
+    window.handleQuizAnswer = function(optionIndex) {
+        if (AppState.quizState.finished) return;
+        
+        const q = AppState.quizState.questions[AppState.quizState.index];
+        if (optionIndex === q.answer) {
+            AppState.quizState.score++;
+            showToast('Correct!', 'success');
         } else {
-            btnElement.classList.add('border-red-500', 'bg-red-50', 'dark:bg-red-900/20', 'text-red-700', 'dark:text-red-400');
-            btnElement.classList.remove('border-gray-200', 'dark:border-darkBorder');
-            showToast('Incorrect, try again!', 'error');
+            showToast('Incorrect!', 'error');
+        }
+        
+        if (AppState.quizState.index < AppState.quizState.questions.length - 1) {
+            AppState.quizState.index++;
+            renderApp();
+        } else {
+            AppState.quizState.finished = true;
+            renderApp();
+            
+            const passRatio = AppState.quizState.score / AppState.quizState.questions.length;
+            if (passRatio >= 0.5) {
+                const bonusXP = AppState.quizState.score * 10;
+                markLessonComplete(AppState.currentLessonId, bonusXP);
+            } else {
+                showToast('Quiz finished. You need a better score to pass!', 'info');
+            }
+        }
+    };
+    
+    window.submitCourseReview = async function(courseId) {
+        const rating = parseInt($('review-rating').value);
+        const text = $('review-text').value;
+        
+        if (!rating || !text) return showToast('Please provide a rating and review text.', 'error');
+        
+        const btn = $('btn-submit-review');
+        if(btn) { btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i>'; btn.disabled = true; }
+        
+        try {
+            const newReview = {
+                uid: AppState.user.uid,
+                name: AppState.user.name,
+                avatar: AppState.user.avatar,
+                rating: rating,
+                text: text,
+                date: Date.now()
+            };
+            
+            await updateDoc(getPubDoc('courses', courseId), {
+                reviews: arrayUnion(newReview)
+            });
+            
+            showToast('Review submitted successfully!', 'success');
+            $('review-text').value = '';
+            $('review-rating').value = '5';
+        } catch(e) {
+            showToast('Failed to submit review.', 'error');
+        } finally {
+            if(btn) { btn.innerHTML = 'Submit Review'; btn.disabled = false; }
         }
     };
 
@@ -1304,6 +1365,9 @@
         const completedInCourse = (course.syllabus || []).filter(l => AppState.user?.completedLessons?.includes(l.id)).length;
         const totalLessons = course.syllabus?.length || 0;
         const progress = totalLessons > 0 ? Math.round((completedInCourse / totalLessons) * 100) : 0;
+        
+        const reviews = course.reviews || [];
+        const avgRating = reviews.length > 0 ? (reviews.reduce((a,b)=>a+b.rating,0)/reviews.length).toFixed(1) : 0;
 
         return `
         <div class="animate-fade-in w-full h-full flex flex-col">
@@ -1326,6 +1390,17 @@
                     <div class="text-center md:text-left flex-1 w-full">
                         <div class="inline-block px-3 py-1 bg-black/50 backdrop-blur rounded-lg text-xs font-bold uppercase tracking-wider mb-3 text-white">${course.teacherName}</div>
                         <h1 class="text-3xl md:text-5xl font-extrabold mb-3 text-gray-900 dark:text-white tracking-tight drop-shadow-md leading-tight">${course.title}</h1>
+                        
+                        <div class="flex items-center justify-center md:justify-start gap-4 mb-4">
+                            <div class="flex items-center gap-1 text-yellow-400">
+                                <i class="ph-fill ph-star"></i> <span class="font-bold text-white">${avgRating}</span>
+                                <span class="text-sm text-gray-400 ml-1">(${reviews.length} reviews)</span>
+                            </div>
+                            <div class="flex items-center gap-1 text-gray-300 text-sm">
+                                <i class="ph-fill ph-users"></i> ${course.enrollmentCount || 0} students
+                            </div>
+                        </div>
+
                         <p class="text-gray-800 dark:text-gray-300 text-base md:text-lg mb-6 max-w-xl opacity-90 drop-shadow-sm font-medium mx-auto md:mx-0">${course.description}</p>
                         
                         <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center md:justify-start gap-3 w-full">
@@ -1355,41 +1430,95 @@
             </div>
 
             <div class="flex-1 bg-white dark:bg-darkBg p-4 md:p-12 relative -mt-6 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                <div class="max-w-3xl mx-auto">
-                    <h2 class="text-2xl font-bold mb-6">Course Syllabus</h2>
-                    <div class="space-y-3">
-                        ${(course.syllabus || []).length === 0 ? '<p class="text-gray-500 italic">Content is being prepared by the instructor.</p>' : 
-                         course.syllabus.map((item, index) => {
-                            const isLocked = item.isPremium && !isUnlocked;
-                            const isCompleted = AppState.user?.completedLessons?.includes(item.id);
-                            const icon = item.type === 'video' ? 'ph-play-circle' : item.type === 'pdf' ? 'ph-file-pdf' : item.type === 'quiz' ? 'ph-exam' : 'ph-article';
-                            
-                            return `
-                            <div onclick="${isLocked ? `Maps('upgrade', {courseId: '${course.id}'})` : `Maps('lesson', {lessonId: '${item.id}'})`}" 
-                                  class="group flex items-center gap-4 p-4 rounded-2xl border ${isCompleted ? 'border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-100 dark:border-darkBorder bg-white dark:bg-darkCard hover:border-primary/30'} cursor-pointer transition-all">
+                <div class="max-w-3xl mx-auto space-y-12">
+                    
+                    <!-- Syllabus Section -->
+                    <div>
+                        <h2 class="text-2xl font-bold mb-6">Course Syllabus</h2>
+                        <div class="space-y-3">
+                            ${(course.syllabus || []).length === 0 ? '<p class="text-gray-500 italic">Content is being prepared by the instructor.</p>' : 
+                             course.syllabus.map((item, index) => {
+                                const isLocked = item.isPremium && !isUnlocked;
+                                const isCompleted = AppState.user?.completedLessons?.includes(item.id);
+                                const icon = item.type === 'video' ? 'ph-play-circle' : item.type === 'pdf' ? 'ph-file-pdf' : item.type === 'quiz' ? 'ph-exam' : 'ph-article';
                                 
-                                <div class="w-12 h-12 rounded-full shrink-0 flex items-center justify-center ${isCompleted ? 'bg-green-500 text-white shadow-md shadow-green-500/20' : isLocked ? 'bg-gray-100 dark:bg-darkBg text-gray-400' : 'bg-primary/10 text-primary group-hover:scale-110 transition-transform'}">
-                                    ${isCompleted ? '<i class="ph-bold ph-check text-xl"></i>' : isLocked ? '<i class="ph-fill ph-lock-key text-xl"></i>' : `<i class="ph-fill ${icon} text-xl"></i>`}
-                                </div>
-                                
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs font-bold text-gray-400 w-6">0${index+1}</span>
-                                        <h3 class="font-bold text-gray-900 dark:text-white truncate ${isLocked ? 'opacity-70' : ''}">${item.title}</h3>
+                                return `
+                                <div onclick="${isLocked ? `Maps('upgrade', {courseId: '${course.id}'})` : `Maps('lesson', {lessonId: '${item.id}'})`}" 
+                                      class="group flex items-center gap-4 p-4 rounded-2xl border ${isCompleted ? 'border-green-200 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-100 dark:border-darkBorder bg-white dark:bg-darkCard hover:border-primary/30'} cursor-pointer transition-all">
+                                    
+                                    <div class="w-12 h-12 rounded-full shrink-0 flex items-center justify-center ${isCompleted ? 'bg-green-500 text-white shadow-md shadow-green-500/20' : isLocked ? 'bg-gray-100 dark:bg-darkBg text-gray-400' : 'bg-primary/10 text-primary group-hover:scale-110 transition-transform'}">
+                                        ${isCompleted ? '<i class="ph-bold ph-check text-xl"></i>' : isLocked ? '<i class="ph-fill ph-lock-key text-xl"></i>' : `<i class="ph-fill ${icon} text-xl"></i>`}
                                     </div>
-                                    <div class="flex items-center gap-3 pl-8 text-xs text-gray-500 font-medium">
-                                        <span class="flex items-center gap-1"><i class="ph ph-clock"></i> ${item.duration}</span>
-                                        <span class="uppercase">${item.type}</span>
+                                    
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="text-xs font-bold text-gray-400 w-6">0${index+1}</span>
+                                            <h3 class="font-bold text-gray-900 dark:text-white truncate ${isLocked ? 'opacity-70' : ''}">${item.title}</h3>
+                                        </div>
+                                        <div class="flex items-center gap-3 pl-8 text-xs text-gray-500 font-medium">
+                                            <span class="flex items-center gap-1"><i class="ph ph-clock"></i> ${item.duration}</span>
+                                            <span class="uppercase">${item.type}</span>
+                                        </div>
                                     </div>
+                                    
+                                    ${isLocked ? '<span class="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md hidden sm:block">PREMIUM</span>' : 
+                                       isCompleted ? '<span class="text-xs font-bold text-green-500 hidden sm:block">COMPLETED</span>' : 
+                                       '<i class="ph-bold ph-caret-right text-gray-300 group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100 translate-x-[-10px] group-hover:translate-x-0"></i>'}
                                 </div>
-                                
-                                ${isLocked ? '<span class="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md hidden sm:block">PREMIUM</span>' : 
-                                   isCompleted ? '<span class="text-xs font-bold text-green-500 hidden sm:block">COMPLETED</span>' : 
-                                   '<i class="ph-bold ph-caret-right text-gray-300 group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100 translate-x-[-10px] group-hover:translate-x-0"></i>'}
-                            </div>
-                            `;
-                        }).join('')}
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
+                    
+                    <!-- Reviews Section -->
+                    <div>
+                        <h2 class="text-2xl font-bold mb-6">Student Reviews</h2>
+                        
+                        ${isUnlocked ? `
+                        <div class="bg-gray-50 dark:bg-darkCard p-6 rounded-2xl border border-gray-100 dark:border-darkBorder mb-8">
+                            <h3 class="font-bold mb-4">Leave a Review</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm text-gray-500 mb-2">Rating</label>
+                                    <select id="review-rating" class="w-full md:w-auto px-4 py-2 rounded-xl bg-white dark:bg-darkBg border border-gray-200 dark:border-darkBorder outline-none">
+                                        <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                                        <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                                        <option value="3">⭐⭐⭐ (3/5)</option>
+                                        <option value="2">⭐⭐ (2/5)</option>
+                                        <option value="1">⭐ (1/5)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <textarea id="review-text" rows="3" placeholder="What did you think of this course?" class="w-full px-4 py-3 rounded-xl bg-white dark:bg-darkBg border border-gray-200 dark:border-darkBorder focus:ring-2 focus:ring-primary outline-none resize-none"></textarea>
+                                </div>
+                                <button id="btn-submit-review" onclick="submitCourseReview('${course.id}')" class="px-6 py-2 bg-primary text-white font-bold rounded-xl active:scale-95 transition-all">Submit Review</button>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <div class="space-y-4">
+                            ${reviews.length === 0 ? '<p class="text-gray-500 italic">No reviews yet.</p>' : 
+                             reviews.sort((a,b)=>b.date - a.date).map(r => `
+                                <div class="bg-white dark:bg-darkCard p-6 rounded-2xl border border-gray-100 dark:border-darkBorder shadow-sm">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div class="flex items-center gap-3">
+                                            <img src="${r.avatar}" class="w-10 h-10 rounded-full object-cover">
+                                            <div>
+                                                <h4 class="font-bold text-sm leading-tight">${r.name}</h4>
+                                                <div class="text-yellow-400 text-xs flex gap-0.5 mt-1">
+                                                    ${Array(r.rating).fill('<i class="ph-fill ph-star"></i>').join('')}
+                                                    ${Array(5-r.rating).fill('<i class="ph ph-star"></i>').join('')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <span class="text-xs text-gray-400">${new Date(r.date).toLocaleDateString()}</span>
+                                    </div>
+                                    <p class="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">${r.text}</p>
+                                </div>
+                             `).join('')}
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>`;
@@ -1759,6 +1888,11 @@
 
     function renderTeacher() {
         const myCourses = AppState.courses.filter(c => c.teacherId === AppState.user?.uid);
+        
+        // Analytics calculations
+        const totalStudents = myCourses.reduce((acc, c) => acc + (c.enrollmentCount || 0), 0);
+        const estimatedRevenue = myCourses.reduce((acc, c) => acc + ((c.enrollmentCount || 0) * c.price), 0);
+
         return `
         <div class="animate-fade-in w-full max-w-6xl mx-auto p-4 md:p-8 flex flex-col h-full">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
@@ -1769,6 +1903,31 @@
                 <button onclick="AppState.modals.createCourse = true; renderApp()" class="px-6 py-3 gradient-bg text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all flex items-center gap-2">
                     <i class="ph-bold ph-plus"></i> New Course
                 </button>
+            </div>
+            
+            <!-- Analytics Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white dark:bg-darkCard p-6 rounded-[2rem] border border-gray-100 dark:border-darkBorder shadow-sm flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-500 flex items-center justify-center shrink-0"><i class="ph-fill ph-books text-3xl"></i></div>
+                    <div>
+                        <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">My Courses</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${myCourses.length}</p>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-darkCard p-6 rounded-[2rem] border border-gray-100 dark:border-darkBorder shadow-sm flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-green-100 text-green-500 flex items-center justify-center shrink-0"><i class="ph-fill ph-users text-3xl"></i></div>
+                    <div>
+                        <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Students</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white">${totalStudents}</p>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-darkCard p-6 rounded-[2rem] border border-gray-100 dark:border-darkBorder shadow-sm flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-purple-100 text-purple-500 flex items-center justify-center shrink-0"><i class="ph-fill ph-wallet text-3xl"></i></div>
+                    <div>
+                        <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Est. Revenue</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-white">₹${estimatedRevenue}</p>
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2105,42 +2264,56 @@
     }
 
     function renderQuiz() {
+        if (!AppState.quizState.questions || AppState.quizState.questions.length === 0) {
+            return `<div class="p-8 text-center text-gray-500">No questions available in this quiz.</div>`;
+        }
+
+        if (AppState.quizState.finished) {
+            const passRatio = AppState.quizState.score / AppState.quizState.questions.length;
+            const passed = passRatio >= 0.5;
+            
+            return `
+            <div class="flex flex-col h-full animate-fade-in bg-white dark:bg-darkBg items-center justify-center p-8">
+                <div class="w-24 h-24 rounded-full flex items-center justify-center ${passed ? 'bg-green-100 text-green-500' : 'bg-red-100 text-red-500'} mb-6">
+                    <i class="ph-fill ${passed ? 'ph-check-circle' : 'ph-x-circle'} text-5xl"></i>
+                </div>
+                <h2 class="text-3xl font-bold mb-2">${passed ? 'Quiz Passed!' : 'Quiz Failed'}</h2>
+                <p class="text-gray-500 text-lg mb-8">You scored ${AppState.quizState.score} out of ${AppState.quizState.questions.length}.</p>
+                <div class="flex gap-4">
+                    <button onclick="navigate('lesson', {lessonId: '${AppState.currentLessonId}'})" class="px-6 py-3 bg-gray-200 dark:bg-darkBorder text-gray-800 dark:text-gray-200 font-bold rounded-xl active:scale-95 transition-all">Retry Quiz</button>
+                    <button onclick="navigate('courseDetail')" class="px-6 py-3 bg-primary text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-primary/30">Back to Course</button>
+                </div>
+            </div>`;
+        }
+
+        const q = AppState.quizState.questions[AppState.quizState.index];
+        const progressWidth = ((AppState.quizState.index) / AppState.quizState.questions.length) * 100;
+        const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+
         return `
         <div class="flex flex-col h-full animate-fade-in bg-white dark:bg-darkBg">
             <div class="p-4 flex items-center justify-between border-b border-gray-100 dark:border-darkBorder sticky top-0 bg-white/80 dark:bg-darkBg/80 backdrop-blur z-10">
-                <button onclick="navigate('dashboard')" class="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-darkCard rounded-full transition-colors"><i class="ph-bold ph-x text-xl"></i></button>
+                <button onclick="navigate('courseDetail')" class="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-darkCard rounded-full transition-colors"><i class="ph-bold ph-x text-xl"></i></button>
                 <div class="flex-1 max-w-md mx-4">
                     <div class="w-full bg-gray-200 dark:bg-darkCard rounded-full h-2 overflow-hidden">
-                        <div class="gradient-bg h-2 rounded-full" style="width: 33%"></div>
+                        <div class="gradient-bg h-2 rounded-full transition-all duration-300" style="width: ${progressWidth}%"></div>
                     </div>
                 </div>
-                <div class="font-bold text-gray-400">1/3</div>
+                <div class="font-bold text-gray-400 text-sm">${AppState.quizState.index + 1} / ${AppState.quizState.questions.length}</div>
             </div>
 
             <div class="flex-1 flex flex-col p-6 max-w-2xl mx-auto w-full justify-center pb-20">
-                <span class="text-sm font-bold text-primary uppercase tracking-wider mb-2">Question 1</span>
-                <h2 class="text-2xl md:text-3xl font-bold mb-8 text-gray-900 dark:text-white">How do you declare a constant variable in JavaScript?</h2>
+                <span class="text-sm font-bold text-primary uppercase tracking-wider mb-2">Question ${AppState.quizState.index + 1}</span>
+                <h2 class="text-2xl md:text-3xl font-bold mb-8 text-gray-900 dark:text-white">${q.q}</h2>
                 
                 <div class="space-y-4">
-                    <button onclick="handleQuizAnswer(this, false)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
-                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">A</span> var
-                    </button>
-                    <button onclick="handleQuizAnswer(this, false)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
-                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">B</span> let
-                    </button>
-                    <button onclick="handleQuizAnswer(this, true)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
-                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">C</span> const
-                    </button>
-                    <button onclick="handleQuizAnswer(this, false)" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-gray-400 dark:hover:border-gray-500 transition-all text-lg flex items-center">
-                        <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 text-center leading-8 rounded-lg mr-3">D</span> constant
-                    </button>
+                    ${q.options.map((opt, i) => `
+                        <button onclick="handleQuizAnswer(${i})" class="w-full p-4 border-2 border-gray-200 dark:border-darkBorder rounded-2xl text-left font-medium hover:border-primary dark:hover:border-primary transition-all text-lg flex items-center group">
+                            <span class="inline-block w-8 h-8 bg-gray-100 dark:bg-darkCard text-gray-500 group-hover:bg-primary group-hover:text-white text-center leading-8 rounded-lg mr-3 transition-colors">${letters[i]}</span> 
+                            ${opt}
+                        </button>
+                    `).join('')}
                 </div>
-            </div>
-
-            <div class="p-4 border-t border-gray-100 dark:border-darkBorder bg-white dark:bg-darkCard flex justify-center sticky bottom-0">
-                <button onclick="navigate('dashboard')" class="w-full max-w-2xl py-4 bg-gray-200 dark:bg-darkBorder text-gray-600 dark:text-gray-300 font-bold rounded-2xl active:scale-95 transition-all text-lg hover:bg-gray-300 dark:hover:bg-gray-700">
-                    Skip Question
-                </button>
             </div>
         </div>`;
     }
